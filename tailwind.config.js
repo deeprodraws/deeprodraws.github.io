@@ -26,7 +26,7 @@ module.exports = {
         },
       },
       fontFamily: {
-        serif: ['var(--font-playfair)', 'Georgia', 'serif'],
+        serif: ['var(--font-bebas)', 'Impact', 'sans-serif'],
         sans: ['var(--font-dm-sans)', 'system-ui', 'sans-serif'],
       },
       transitionDuration: {

@@ -12,6 +12,7 @@ html {
 body {
   background-color: #080807;
   color: #f2ede4;
+  font-weight: 500;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -45,7 +46,6 @@ select option {
   color: #f2ede4;
 }
 
-/* Grain overlay helper */
 .grain-overlay::after {
   content: '';
   position: absolute;

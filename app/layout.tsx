@@ -1,15 +1,18 @@
 import type { Metadata } from 'next'
-import { Playfair_Display, DM_Sans } from 'next/font/google'
+import { Bebas_Neue, DM_Sans } from 'next/font/google'
+import Script from 'next/script'
 import './globals.css'
 
-const playfair = Playfair_Display({
+const bebasNeue = Bebas_Neue({
+  weight: '400',
   subsets: ['latin'],
-  variable: '--font-playfair',
+  variable: '--font-bebas',
   display: 'swap',
 })
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
+  weight: ['400', '500', '600'],
   variable: '--font-dm-sans',
   display: 'swap',
 })
@@ -17,7 +20,7 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: 'DeeproDraws · Charcoal Portraits by Deepro C.',
   description:
-    'Charcoal portraits from my hand to your wall. Custom commissions, pet portraits, and fine art prints by Deepro C., based in Belmont, CA.',
+    'Charcoal portraits by hand. Custom commissions, pet portraits, and fine art prints by Deepro C., based in Belmont, CA.',
   keywords: [
     'charcoal artist',
     'portrait artist',
@@ -30,7 +33,7 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     title: 'DeeproDraws · Charcoal Portraits by Deepro C.',
-    description: 'Charcoal portraits from my hand to your wall.',
+    description: 'Charcoal portraits by hand.',
     type: 'website',
     url: 'https://deeprodraws.github.io',
   },
@@ -38,8 +41,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${playfair.variable} ${dmSans.variable}`}>
-      <body>{children}</body>
+    <html lang="en" className={`${bebasNeue.variable} ${dmSans.variable}`}>
+      <body>
+        {children}
+        <Script src="https://forminit.com/sdk/v1/forminit.js" strategy="afterInteractive" />
+      </body>
     </html>
   )
 }

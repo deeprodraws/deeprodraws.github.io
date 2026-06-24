@@ -7,8 +7,8 @@ const navLinks = [
   { label: 'Gallery', href: '#gallery' },
   { label: 'About', href: '#about' },
   { label: 'Achievements', href: '#achievements' },
-  { label: 'Prints', href: '#prints' },
-  { label: 'Commission', href: '#commission' },
+  { label: 'Prints', href: '/prints' },
+  { label: 'Work With Me', href: '#commission' },
 ]
 
 export default function Navigation() {
@@ -34,18 +34,17 @@ export default function Navigation() {
         transition={{ duration: 0.7, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
         className={`fixed top-0 left-0 right-0 z-50 px-6 md:px-12 py-5 flex items-center justify-between transition-all duration-500 ${
           scrolled
-            ? 'bg-ink/95 backdrop-blur-md border-b border-ink-border'
+            ? 'bg-ink/95 backdrop-blur-md border-b-2 border-ink-border'
             : 'bg-transparent'
         }`}
       >
         <a
-          href="#"
-          className="font-serif text-xl text-parchment hover:text-gold transition-colors duration-300"
+          href="/"
+          className="font-serif text-2xl text-parchment hover:text-gold transition-colors duration-300 tracking-wide"
         >
           DeeproDraws
         </a>
 
-        {/* Desktop links */}
         <div className="hidden md:flex items-center gap-8">
           {navLinks.slice(0, -1).map((link) => (
             <a
@@ -58,37 +57,23 @@ export default function Navigation() {
           ))}
           <a
             href="#commission"
-            className="font-sans text-[11px] tracking-[0.25em] uppercase px-5 py-2.5 bg-parchment text-ink hover:bg-gold transition-colors duration-300"
+            className="font-sans text-[11px] tracking-[0.25em] uppercase px-5 py-2.5 bg-parchment text-ink hover:bg-gold transition-colors duration-300 font-semibold"
           >
-            Commission
+            Work With Me
           </a>
         </div>
 
-        {/* Hamburger */}
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
           className="md:hidden p-2 flex flex-col gap-[5px] z-[60]"
           aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
         >
-          <span
-            className={`block w-6 h-px bg-parchment transition-all duration-300 origin-center ${
-              mobileOpen ? 'rotate-45 translate-y-[8.5px]' : ''
-            }`}
-          />
-          <span
-            className={`block w-6 h-px bg-parchment transition-all duration-300 ${
-              mobileOpen ? 'opacity-0 scale-x-0' : ''
-            }`}
-          />
-          <span
-            className={`block w-6 h-px bg-parchment transition-all duration-300 origin-center ${
-              mobileOpen ? '-rotate-45 -translate-y-[8.5px]' : ''
-            }`}
-          />
+          <span className={`block w-6 h-[2px] bg-parchment transition-all duration-300 origin-center ${mobileOpen ? 'rotate-45 translate-y-[8.5px]' : ''}`} />
+          <span className={`block w-6 h-[2px] bg-parchment transition-all duration-300 ${mobileOpen ? 'opacity-0 scale-x-0' : ''}`} />
+          <span className={`block w-6 h-[2px] bg-parchment transition-all duration-300 origin-center ${mobileOpen ? '-rotate-45 -translate-y-[8.5px]' : ''}`} />
         </button>
       </motion.nav>
 
-      {/* Mobile menu overlay */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
@@ -106,7 +91,7 @@ export default function Navigation() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 + i * 0.07 }}
-                className="font-serif text-4xl text-parchment hover:text-gold transition-colors duration-300"
+                className="font-serif text-5xl text-parchment hover:text-gold transition-colors duration-300"
               >
                 {link.label}
               </motion.a>
