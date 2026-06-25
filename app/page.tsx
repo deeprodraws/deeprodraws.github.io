@@ -1,5 +1,6 @@
 import Navigation from '@/components/Navigation'
 import Hero from '@/components/Hero'
+import Marquee from '@/components/Marquee'
 import Gallery from '@/components/Gallery'
 import About from '@/components/About'
 import Achievements from '@/components/Achievements'
@@ -10,9 +11,10 @@ import Footer from '@/components/Footer'
 
 export default function Home() {
   return (
-    <main className="bg-ink min-h-screen">
+    <main className="bg-black min-h-screen">
       <Navigation />
       <Hero />
+      <Marquee />
       <Gallery />
       <About />
       <Achievements />

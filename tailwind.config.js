@@ -7,30 +7,18 @@ module.exports = {
   ],
   theme: {
     extend: {
-      colors: {
-        ink: {
-          DEFAULT: '#080807',
-          light: '#111110',
-          mid: '#1c1b18',
-          border: '#2a2825',
-        },
-        parchment: {
-          DEFAULT: '#f2ede4',
-          dim: '#b0a99e',
-          mute: '#5e5a55',
-        },
-        gold: {
-          DEFAULT: '#c8a45e',
-          light: '#d4b878',
-          dark: '#9e7e3c',
-        },
-      },
       fontFamily: {
         serif: ['var(--font-bebas)', 'Impact', 'sans-serif'],
         sans: ['var(--font-dm-sans)', 'system-ui', 'sans-serif'],
       },
-      transitionDuration: {
-        400: '400ms',
+      animation: {
+        marquee: 'marquee 28s linear infinite',
+      },
+      keyframes: {
+        marquee: {
+          '0%': { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(-50%)' },
+        },
       },
     },
   },

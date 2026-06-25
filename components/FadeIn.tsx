@@ -8,6 +8,7 @@ interface FadeInProps {
   className?: string
   delay?: number
   direction?: 'up' | 'down' | 'left' | 'right' | 'none'
+  scale?: boolean
 }
 
 export default function FadeIn({
@@ -15,16 +16,17 @@ export default function FadeIn({
   className = '',
   delay = 0,
   direction = 'up',
+  scale = false,
 }: FadeInProps) {
   const ref = useRef(null)
-  const isInView = useInView(ref, { once: true, margin: '-60px' })
+  const isInView = useInView(ref, { once: true, margin: '-50px' })
 
   const offsets = {
-    up: { y: 36, x: 0 },
-    down: { y: -36, x: 0 },
-    left: { y: 0, x: 36 },
-    right: { y: 0, x: -36 },
-    none: { y: 0, x: 0 },
+    up:    { y: 60, x: 0 },
+    down:  { y: -60, x: 0 },
+    left:  { y: 0, x: 60 },
+    right: { y: 0, x: -60 },
+    none:  { y: 0, x: 0 },
   }
 
   const { x, y } = offsets[direction]
@@ -32,9 +34,17 @@ export default function FadeIn({
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, x, y }}
-      animate={isInView ? { opacity: 1, x: 0, y: 0 } : { opacity: 0, x, y }}
-      transition={{ duration: 0.75, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
+      initial={{ opacity: 0, x, y, scale: scale ? 0.95 : 1 }}
+      animate={
+        isInView
+          ? { opacity: 1, x: 0, y: 0, scale: 1 }
+          : { opacity: 0, x, y, scale: scale ? 0.95 : 1 }
+      }
+      transition={{
+        duration: 0.45,
+        delay,
+        ease: [0.16, 1, 0.3, 1],
+      }}
       className={className}
     >
       {children}
