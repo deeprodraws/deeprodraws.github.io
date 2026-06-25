@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import Link from 'next/link'
 import FadeIn from './FadeIn'
 
 const artworks = [
@@ -106,6 +107,96 @@ function Lightbox({ artworks, index, onClose, onPrev, onNext }: {
   )
 }
 
+function MobileSwipeGallery({ onOpen }: { onOpen: (i: number) => void }) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [activeIndex, setActiveIndex] = useState(0)
+  const total = artworks.length + 1 // +1 for VIEW ALL card
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const onScroll = () => {
+      const firstCard = el.children[0] as HTMLElement
+      if (!firstCard) return
+      const cardW = firstCard.offsetWidth
+      const gap = 12
+      setActiveIndex(Math.min(Math.round(el.scrollLeft / (cardW + gap)), total - 1))
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [total])
+
+  const scrollToIndex = (i: number) => {
+    const el = scrollRef.current
+    if (!el) return
+    const firstCard = el.children[0] as HTMLElement
+    const cardW = firstCard?.offsetWidth ?? 0
+    el.scrollTo({ left: i * (cardW + 12), behavior: 'smooth' })
+  }
+
+  return (
+    <div>
+      {/* Scroll track — breakout handled by parent's -mx-6 */}
+      <div
+        ref={scrollRef}
+        className="flex overflow-x-auto snap-x snap-mandatory gap-3 pl-6 scroll-pl-6 pb-3 [&::-webkit-scrollbar]:hidden"
+        style={{ scrollbarWidth: 'none' }}
+      >
+        {artworks.map((artwork, i) => (
+          <button
+            key={artwork.id}
+            onClick={() => onOpen(i)}
+            className="flex-none w-[82vw] snap-start text-left focus-visible:outline-none"
+            aria-label={`Open ${artwork.title}`}
+          >
+            <div className="relative aspect-[3/4] overflow-hidden bg-white/5">
+              <img
+                src={`/images/${artwork.file}`}
+                alt={artwork.title}
+                className="absolute inset-0 w-full h-full object-cover"
+                loading="lazy"
+              />
+            </div>
+            <div className="mt-2.5">
+              <p className="font-sans text-sm font-semibold text-white leading-tight">{artwork.title}</p>
+              <p className="font-sans text-xs text-white/45 mt-0.5">{artwork.year}</p>
+            </div>
+          </button>
+        ))}
+
+        {/* VIEW ALL card */}
+        <Link href="/gallery" className="flex-none w-[82vw] snap-start">
+          <div className="relative aspect-[3/4] border border-white/15 flex flex-col items-center justify-center gap-4 hover:border-white/35 transition-colors duration-150">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="text-white/35">
+              <rect x="3" y="3" width="7" height="7" rx="0.5" />
+              <rect x="14" y="3" width="7" height="7" rx="0.5" />
+              <rect x="3" y="14" width="7" height="7" rx="0.5" />
+              <rect x="14" y="14" width="7" height="7" rx="0.5" />
+            </svg>
+            <p className="font-sans text-[10px] tracking-[0.4em] uppercase text-white/60">View All</p>
+          </div>
+        </Link>
+      </div>
+
+      {/* Dot indicators */}
+      <div className="flex justify-center items-center gap-[5px] mt-5">
+        {Array.from({ length: total }).map((_, i) => (
+          <button
+            key={i}
+            onClick={() => scrollToIndex(i)}
+            aria-label={`Go to slide ${i + 1}`}
+            className={`rounded-full transition-all duration-300 ${
+              i === activeIndex
+                ? 'w-[14px] h-[3px] bg-white'
+                : 'w-[3px] h-[3px] bg-white/25'
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function Gallery() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
@@ -147,12 +238,20 @@ export default function Gallery() {
           </div>
         </FadeIn>
 
-        <div className="columns-1 sm:columns-2 lg:columns-3 gap-3">
-          {artworks.map((artwork, i) => (
-            <FadeIn key={artwork.id} delay={i * 0.03} scale className="break-inside-avoid mb-3">
-              <ArtworkCard artwork={artwork} onClick={() => setLightboxIndex(i)} />
-            </FadeIn>
-          ))}
+        {/* Mobile: horizontal swipe carousel — -mx-6 bleeds past section padding */}
+        <div className="-mx-6 md:hidden">
+          <MobileSwipeGallery onOpen={setLightboxIndex} />
+        </div>
+
+        {/* Desktop: vertical masonry grid — unchanged */}
+        <div className="hidden md:block">
+          <div className="columns-1 sm:columns-2 lg:columns-3 gap-3">
+            {artworks.map((artwork, i) => (
+              <FadeIn key={artwork.id} delay={i * 0.03} scale className="break-inside-avoid mb-3">
+                <ArtworkCard artwork={artwork} onClick={() => setLightboxIndex(i)} />
+              </FadeIn>
+            ))}
+          </div>
         </div>
       </div>
 
