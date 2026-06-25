@@ -8,7 +8,7 @@ export default function Hero() {
       id="hero"
       className="relative min-h-screen bg-black flex flex-col"
     >
-      <div className="relative flex flex-col justify-end flex-1 px-6 md:px-12 pb-14 pt-32">
+      <div className="relative flex flex-col justify-center flex-1 px-6 md:px-12 pt-24 pb-20">
         <div className="overflow-hidden">
           <motion.h1
             initial={{ y: 120, opacity: 0 }}

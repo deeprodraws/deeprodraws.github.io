@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import Link from 'next/link'
 import FadeIn from './FadeIn'
 
 const artworks = [
@@ -110,7 +109,7 @@ function Lightbox({ artworks, index, onClose, onPrev, onNext }: {
 function MobileSwipeGallery({ onOpen }: { onOpen: (i: number) => void }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [activeIndex, setActiveIndex] = useState(0)
-  const total = artworks.length + 1
+  const total = artworks.length
 
   useEffect(() => {
     const el = scrollRef.current
@@ -168,18 +167,6 @@ function MobileSwipeGallery({ onOpen }: { onOpen: (i: number) => void }) {
           </button>
         ))}
 
-        {/* VIEW ALL — scrolls to main-page gallery, not a separate /gallery route */}
-        <Link href="/#gallery" className="flex-none w-[82vw] snap-start snap-always">
-          <div className="relative aspect-[3/4] max-h-[65svh] border border-white/15 flex flex-col items-center justify-center gap-4 hover:border-white/35 transition-colors duration-150">
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="text-white/35">
-              <rect x="3" y="3" width="7" height="7" rx="0.5" />
-              <rect x="14" y="3" width="7" height="7" rx="0.5" />
-              <rect x="3" y="14" width="7" height="7" rx="0.5" />
-              <rect x="14" y="14" width="7" height="7" rx="0.5" />
-            </svg>
-            <p className="font-sans text-[10px] tracking-[0.4em] uppercase text-white/60">View All</p>
-          </div>
-        </Link>
       </div>
 
       {/* Dot indicators */}
