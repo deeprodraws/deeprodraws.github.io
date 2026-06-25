@@ -58,7 +58,7 @@ select.input-bare:focus {
 /* Faster marquee on mobile */
 @media (max-width: 767px) {
   .animate-marquee {
-    animation-duration: 8s;
+    animation-duration: 14s;
   }
 }
 
