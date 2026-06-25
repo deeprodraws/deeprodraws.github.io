@@ -1,12 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import FadeIn from './FadeIn'
-
-const printPreviews = [
-  { id: 1, title: 'Portrait Study',       file: 'portrait_study.jpeg',       aspectClass: 'aspect-[3/4]' },
-  { id: 2, title: 'Eagle',                file: 'eagle.jpeg',                aspectClass: 'aspect-[5/6]' },
-  { id: 3, title: 'What Awaits You Here', file: 'foggy_hills_landscape.jpeg', aspectClass: 'aspect-[4/3]' },
-]
+import { prints } from '@/data/prints'
 
 export default function Prints() {
   return (
@@ -23,12 +19,12 @@ export default function Prints() {
         </FadeIn>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {printPreviews.map((print, i) => (
-            <FadeIn key={print.id} delay={i * 0.08} scale>
+          {prints.map((print, i) => (
+            <FadeIn key={print.slug} delay={i * 0.08} scale>
               <div className="group overflow-hidden">
                 <div className={`${print.aspectClass} relative overflow-hidden`}>
                   <img
-                    src={`/images/${print.file}`}
+                    src={`/images/${print.image}`}
                     alt={print.title}
                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-200 group-hover:scale-[1.04]"
                     loading="lazy"
@@ -36,12 +32,12 @@ export default function Prints() {
                 </div>
                 <div className="pt-4 pb-2 flex items-center justify-between">
                   <p className="font-sans text-sm font-semibold text-white">{print.title}</p>
-                  <a
-                    href="/prints"
+                  <Link
+                    href={`/prints/${print.slug}`}
                     className="font-sans text-[9px] tracking-[0.3em] uppercase text-white/40 hover:text-white border-b border-white/20 hover:border-white/60 pb-px transition-colors min-h-[44px] flex items-center"
                   >
                     Order Print
-                  </a>
+                  </Link>
                 </div>
               </div>
             </FadeIn>

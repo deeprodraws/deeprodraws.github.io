@@ -10,9 +10,9 @@ export default function Hero() {
     offset: ['start start', 'end start'],
   })
 
-  // Parallax — each image moves at a different speed
-  const yMain      = useTransform(scrollYProgress, [0, 1], [0, -160])
-  const ySecondary = useTransform(scrollYProgress, [0, 1], [0, -80])
+  // Mountain moves more (faster parallax) — portrait study moves less (slower)
+  const yMain      = useTransform(scrollYProgress, [0, 1], [0, -220])
+  const ySecondary = useTransform(scrollYProgress, [0, 1], [0, -110])
 
   return (
     <section
@@ -20,40 +20,51 @@ export default function Hero() {
       id="hero"
       className="relative min-h-screen bg-black overflow-hidden flex flex-col"
     >
-      {/* Main artwork — large mountain — top right */}
+      {/*
+        Mountain landscape — top-right.
+        Use natural 4:3 aspect ratio so it reads as landscape, not portrait.
+        Wide enough to bleed off the right edge.
+      */}
       <motion.div
         style={{ y: yMain }}
-        className="absolute top-0 right-0 w-[48vw] max-w-[560px] h-[82vh] z-10 pointer-events-none"
+        className="absolute top-0 right-0 w-[60vw] md:w-[54vw] z-10 pointer-events-none"
       >
-        <img
-          src="/images/large_mountain.jpeg"
-          alt=""
-          className="w-full h-full object-cover"
-          loading="eager"
-        />
-        {/* Fade edges into black */}
-        <div className="absolute bottom-0 inset-x-0 h-48 bg-gradient-to-t from-black to-transparent" />
-        <div className="absolute left-0 inset-y-0 w-24 bg-gradient-to-r from-black to-transparent" />
-      </motion.div>
-
-      {/* Secondary artwork — The Godfather — bottom left */}
-      <motion.div
-        style={{ y: ySecondary }}
-        className="absolute bottom-0 left-0 w-[25vw] max-w-[280px] z-10 pointer-events-none hidden md:block"
-      >
-        <div className="aspect-[5/6] relative overflow-hidden">
+        <div className="relative w-full aspect-[4/3] overflow-hidden">
           <img
-            src="/images/the_godfather.jpeg"
+            src="/images/large_mountain.jpeg"
             alt=""
-            className="absolute inset-0 w-full h-full object-cover opacity-65"
+            className="absolute inset-0 w-full h-full object-cover"
             loading="eager"
           />
-          <div className="absolute top-0 inset-x-0 h-20 bg-gradient-to-b from-black to-transparent" />
-          <div className="absolute right-0 inset-y-0 w-12 bg-gradient-to-l from-black to-transparent" />
+          <div className="absolute bottom-0 inset-x-0 h-56 bg-gradient-to-t from-black to-transparent" />
+          <div className="absolute left-0 inset-y-0 w-32 bg-gradient-to-r from-black to-transparent" />
         </div>
       </motion.div>
 
-      {/* Text — pushed to bottom */}
+      {/*
+        Portrait study — bottom-right.
+        Previously hidden on mobile and positioned bottom-left (behind text).
+        Now visible on mobile, positioned bottom-right so it never conflicts
+        with the left-aligned text block.
+      */}
+      <motion.div
+        style={{ y: ySecondary }}
+        className="absolute bottom-0 right-0 w-[42vw] md:w-[22vw] z-10 pointer-events-none"
+      >
+        <div className="relative aspect-[3/4] overflow-hidden">
+          <img
+            src="/images/portrait_study.jpeg"
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover opacity-60"
+            loading="eager"
+          />
+          <div className="absolute top-0 inset-x-0 h-24 bg-gradient-to-b from-black to-transparent" />
+          <div className="absolute left-0 inset-y-0 w-16 bg-gradient-to-r from-black to-transparent" />
+          <div className="absolute bottom-0 inset-x-0 h-20 bg-gradient-to-t from-black to-transparent" />
+        </div>
+      </motion.div>
+
+      {/* Text — pushed to bottom-left, well clear of the right-side images */}
       <div className="relative z-20 flex flex-col justify-end flex-1 px-6 md:px-12 pb-14 pt-32">
         <div className="overflow-hidden">
           <motion.h1

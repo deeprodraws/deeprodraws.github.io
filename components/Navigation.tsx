@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const navLinks = [
@@ -11,8 +12,13 @@ const navLinks = [
 ]
 
 export default function Navigation() {
+  const pathname = usePathname()
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+
+  // On subpages, resolve anchor links back to the homepage
+  const resolveHref = (href: string) =>
+    href.startsWith('#') && pathname !== '/' ? `/${href}` : href
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 60)
@@ -46,14 +52,14 @@ export default function Navigation() {
           {navLinks.map((link) => (
             <a
               key={link.label}
-              href={link.href}
+              href={resolveHref(link.href)}
               className="font-sans text-[10px] tracking-[0.3em] uppercase text-white/50 hover:text-white transition-colors duration-200"
             >
               {link.label}
             </a>
           ))}
           <a
-            href="#commission"
+            href={resolveHref('#commission')}
             className="font-sans text-[10px] tracking-[0.3em] uppercase px-5 py-2.5 border border-white text-white hover:bg-white hover:text-black transition-colors duration-200 font-semibold min-h-[44px] flex items-center"
           >
             Work With Me
@@ -83,7 +89,7 @@ export default function Navigation() {
             {navLinks.map((link, i) => (
               <motion.a
                 key={link.label}
-                href={link.href}
+                href={resolveHref(link.href)}
                 onClick={() => setMobileOpen(false)}
                 initial={{ opacity: 0, y: 24 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -94,7 +100,7 @@ export default function Navigation() {
               </motion.a>
             ))}
             <motion.a
-              href="#commission"
+              href={resolveHref('#commission')}
               onClick={() => setMobileOpen(false)}
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}

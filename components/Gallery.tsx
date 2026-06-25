@@ -110,7 +110,7 @@ function Lightbox({ artworks, index, onClose, onPrev, onNext }: {
 function MobileSwipeGallery({ onOpen }: { onOpen: (i: number) => void }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [activeIndex, setActiveIndex] = useState(0)
-  const total = artworks.length + 1 // +1 for VIEW ALL card
+  const total = artworks.length + 1
 
   useEffect(() => {
     const el = scrollRef.current
@@ -119,8 +119,7 @@ function MobileSwipeGallery({ onOpen }: { onOpen: (i: number) => void }) {
       const firstCard = el.children[0] as HTMLElement
       if (!firstCard) return
       const cardW = firstCard.offsetWidth
-      const gap = 12
-      setActiveIndex(Math.min(Math.round(el.scrollLeft / (cardW + gap)), total - 1))
+      setActiveIndex(Math.min(Math.round(el.scrollLeft / (cardW + 12)), total - 1))
     }
     el.addEventListener('scroll', onScroll, { passive: true })
     return () => el.removeEventListener('scroll', onScroll)
@@ -136,7 +135,6 @@ function MobileSwipeGallery({ onOpen }: { onOpen: (i: number) => void }) {
 
   return (
     <div>
-      {/* Scroll track — breakout handled by parent's -mx-6 */}
       <div
         ref={scrollRef}
         className="flex overflow-x-auto snap-x snap-mandatory gap-3 pl-6 scroll-pl-6 pb-3 [&::-webkit-scrollbar]:hidden"
@@ -146,27 +144,33 @@ function MobileSwipeGallery({ onOpen }: { onOpen: (i: number) => void }) {
           <button
             key={artwork.id}
             onClick={() => onOpen(i)}
-            className="flex-none w-[82vw] snap-start text-left focus-visible:outline-none"
+            // snap-always: prevents fast swipe from jumping past more than one card
+            className="flex-none w-[82vw] snap-start snap-always text-left focus-visible:outline-none"
             aria-label={`Open ${artwork.title}`}
           >
-            <div className="relative aspect-[3/4] overflow-hidden bg-white/5">
+            {/*
+              Natural aspect ratio per artwork so landscape pieces show correctly.
+              max-h-[65svh] caps tall portrait cards in landscape phone orientation.
+              Title/year overlaid inside the image so they don't bleed into adjacent cards.
+            */}
+            <div className={`relative ${artwork.aspectClass} max-h-[65svh] overflow-hidden`}>
               <img
                 src={`/images/${artwork.file}`}
                 alt={artwork.title}
                 className="absolute inset-0 w-full h-full object-cover"
                 loading="lazy"
               />
-            </div>
-            <div className="mt-2.5">
-              <p className="font-sans text-sm font-semibold text-white leading-tight">{artwork.title}</p>
-              <p className="font-sans text-xs text-white/45 mt-0.5">{artwork.year}</p>
+              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent pt-14 pb-3 px-4 pointer-events-none">
+                <p className="font-sans text-sm font-semibold text-white leading-tight drop-shadow-sm">{artwork.title}</p>
+                <p className="font-sans text-[10px] text-white/55 mt-0.5">{artwork.year}</p>
+              </div>
             </div>
           </button>
         ))}
 
-        {/* VIEW ALL card */}
-        <Link href="/gallery" className="flex-none w-[82vw] snap-start">
-          <div className="relative aspect-[3/4] border border-white/15 flex flex-col items-center justify-center gap-4 hover:border-white/35 transition-colors duration-150">
+        {/* VIEW ALL — scrolls to main-page gallery, not a separate /gallery route */}
+        <Link href="/#gallery" className="flex-none w-[82vw] snap-start snap-always">
+          <div className="relative aspect-[3/4] max-h-[65svh] border border-white/15 flex flex-col items-center justify-center gap-4 hover:border-white/35 transition-colors duration-150">
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="text-white/35">
               <rect x="3" y="3" width="7" height="7" rx="0.5" />
               <rect x="14" y="3" width="7" height="7" rx="0.5" />
@@ -238,7 +242,7 @@ export default function Gallery() {
           </div>
         </FadeIn>
 
-        {/* Mobile: horizontal swipe carousel — -mx-6 bleeds past section padding */}
+        {/* Mobile: horizontal swipe carousel */}
         <div className="-mx-6 md:hidden">
           <MobileSwipeGallery onOpen={setLightboxIndex} />
         </div>
