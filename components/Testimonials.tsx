@@ -19,7 +19,7 @@ export default function Testimonials() {
 
           {/* Quote panel — black */}
           <div className="bg-black flex flex-col justify-center px-8 md:px-14 py-16">
-            <span className="font-serif leading-none text-white/[0.06] select-none block -mb-6" style={{ fontSize: 'clamp(5rem,12vw,9rem)' }}>
+            <span className="font-serif leading-none text-white/20 select-none block -mb-6" style={{ fontSize: 'clamp(5rem,12vw,9rem)' }}>
               "
             </span>
             <p className="font-serif text-[clamp(1.6rem,3vw,2.6rem)] text-white leading-[1.25] mb-10">

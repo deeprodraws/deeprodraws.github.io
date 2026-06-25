@@ -19,6 +19,9 @@ const dmSans = DM_Sans({
 
 export const metadata: Metadata = {
   title: 'DeeproDraws · Charcoal Portraits by Deepro C.',
+  icons: {
+    icon: [{ url: '/images/favicon.svg', type: 'image/svg+xml' }],
+  },
   description:
     'Charcoal portraits by hand. Custom commissions, pet portraits, and fine art prints by Deepro C., based in Belmont, CA.',
   keywords: [
