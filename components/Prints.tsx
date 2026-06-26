@@ -24,7 +24,7 @@ export default function Prints() {
               <div className="group overflow-hidden">
                 <div className={`${print.aspectClass} relative overflow-hidden`}>
                   <img
-                    src={`/images/${print.image}`}
+                    src={`/images/mockups/${print.slug}/mockup-1.jpg`}
                     alt={print.title}
                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-200 group-hover:scale-[1.04]"
                     loading="lazy"

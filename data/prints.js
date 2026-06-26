@@ -19,13 +19,13 @@
  * }>} */
 export const prints = [
   {
-    slug: 'looking-down',
-    title: 'Looking Down',
+    slug: 'bowed',
+    title: 'Bowed',
     image: 'jesus_down.jpeg',
     aspectClass: 'aspect-[4/5]',
     description: '',
     startingPrice: '',
-    mockups: ['mockup-1.png', 'mockup-2.png', 'mockup-3.png'],
+    mockups: ['mockup-1.jpg', 'mockup-2.jpg', 'mockup-3.jpg'],
   },
   {
     slug: 'eagle',
@@ -34,15 +34,15 @@ export const prints = [
     aspectClass: 'aspect-[5/6]',
     description: '',
     startingPrice: '',
-    mockups: ['mockup-1.png', 'mockup-2.png', 'mockup-3.png'],
+    mockups: ['mockup-1.jpg', 'mockup-2.jpg', 'mockup-3.jpg'],
   },
   {
     slug: 'puma',
-    title: 'Puma',
+    title: 'Where the Forest Holds its Breath',
     image: 'puma.jpeg',
     aspectClass: 'aspect-[4/5]',
     description: '',
     startingPrice: '',
-    mockups: ['mockup-1.png', 'mockup-2.png', 'mockup-3.png'],
+    mockups: ['mockup-1.jpg', 'mockup-2.jpg', 'mockup-3.jpg'],
   },
 ]

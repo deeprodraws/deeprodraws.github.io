@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 declare global {
@@ -54,6 +54,7 @@ function MockupGallery({ print }: { print: Print }) {
 
   const [activeIdx, setActiveIdx] = useState(0)
   const [direction, setDirection] = useState(1)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
 
   const goTo = (idx: number) => {
     if (idx === activeIdx) return
@@ -64,64 +65,151 @@ function MockupGallery({ print }: { print: Print }) {
   const prev = () => goTo(Math.max(0, activeIdx - 1))
   const next = () => goTo(Math.min(slides.length - 1, activeIdx + 1))
 
+  useEffect(() => {
+    if (!lightboxOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxOpen(false)
+      if (e.key === 'ArrowLeft') prev()
+      if (e.key === 'ArrowRight') next()
+    }
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lightboxOpen, activeIdx])
+
   return (
-    <div>
-      <div className="relative overflow-hidden bg-white/5 aspect-[4/5]">
-        <AnimatePresence initial={false} custom={direction} mode="popLayout">
-          <motion.img
-            key={activeIdx}
-            src={slides[activeIdx]}
-            alt={`${print.title} mockup ${activeIdx + 1}`}
-            className="absolute inset-0 w-full h-full object-cover"
-            custom={direction}
-            initial={{ opacity: 0, x: direction * 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: direction * -40 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          />
-        </AnimatePresence>
+    <>
+      <div>
+        {/* Gallery strip */}
+        <div
+          className="relative overflow-hidden bg-white/5 aspect-[4/5] cursor-zoom-in"
+          onClick={() => setLightboxOpen(true)}
+        >
+          <AnimatePresence initial={false} custom={direction} mode="popLayout">
+            <motion.img
+              key={activeIdx}
+              src={slides[activeIdx]}
+              alt={`${print.title} mockup ${activeIdx + 1}`}
+              className="absolute inset-0 w-full h-full object-cover"
+              custom={direction}
+              initial={{ opacity: 0, x: direction * 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: direction * -40 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            />
+          </AnimatePresence>
+
+          {/* Expand hint */}
+          <div className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center bg-black/50 pointer-events-none">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+
+          {slides.length > 1 && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); prev() }}
+                disabled={activeIdx === 0}
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center bg-black/60 hover:bg-black/90 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                aria-label="Previous image"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white">
+                  <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); next() }}
+                disabled={activeIdx === slides.length - 1}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center bg-black/60 hover:bg-black/90 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                aria-label="Next image"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white">
+                  <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </>
+          )}
+        </div>
 
         {slides.length > 1 && (
-          <>
-            <button
-              onClick={prev}
-              disabled={activeIdx === 0}
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center bg-black/60 hover:bg-black/90 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-              aria-label="Previous image"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white">
-                <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-            <button
-              onClick={next}
-              disabled={activeIdx === slides.length - 1}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center bg-black/60 hover:bg-black/90 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-              aria-label="Next image"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white">
-                <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          </>
+          <div className="flex justify-center items-center gap-[5px] mt-4">
+            {slides.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => goTo(i)}
+                aria-label={`View image ${i + 1}`}
+                className={`rounded-full transition-all duration-300 ${
+                  i === activeIdx ? 'w-[14px] h-[3px] bg-white' : 'w-[3px] h-[3px] bg-white/30'
+                }`}
+              />
+            ))}
+          </div>
         )}
       </div>
 
-      {slides.length > 1 && (
-        <div className="flex justify-center items-center gap-[5px] mt-4">
-          {slides.map((_, i) => (
+      {/* Lightbox */}
+      <AnimatePresence>
+        {lightboxOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="fixed inset-0 z-[200] bg-black/97 flex items-center justify-center p-4 md:p-10"
+            onClick={() => setLightboxOpen(false)}
+          >
             <button
-              key={i}
-              onClick={() => goTo(i)}
-              aria-label={`View image ${i + 1}`}
-              className={`rounded-full transition-all duration-300 ${
-                i === activeIdx ? 'w-[14px] h-[3px] bg-white' : 'w-[3px] h-[3px] bg-white/30'
-              }`}
+              onClick={() => setLightboxOpen(false)}
+              className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
+              aria-label="Close"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+              </svg>
+            </button>
+
+            {activeIdx > 0 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); prev() }}
+                className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors p-3 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                aria-label="Previous"
+              >
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            )}
+            {activeIdx < slides.length - 1 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); next() }}
+                className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors p-3 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                aria-label="Next"
+              >
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            )}
+
+            <motion.img
+              key={`lb-${activeIdx}`}
+              src={slides[activeIdx]}
+              alt={`${print.title} mockup ${activeIdx + 1}`}
+              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="max-h-[90svh] max-w-full w-auto object-contain"
             />
-          ))}
-        </div>
-      )}
-    </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   )
 }
 
