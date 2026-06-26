@@ -55,13 +55,6 @@ select.input-bare:focus {
   background: rgba(255, 255, 255, 0.08);
 }
 
-/* Faster marquee on mobile */
-@media (max-width: 767px) {
-  .animate-marquee {
-    animation-duration: 14s;
-  }
-}
-
 /* Bottom-border-only input reset */
 .input-bare {
   background: transparent;

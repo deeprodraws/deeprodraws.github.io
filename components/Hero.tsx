@@ -6,8 +6,19 @@ export default function Hero() {
   return (
     <section
       id="hero"
-      className="relative min-h-screen bg-black flex flex-col"
+      className="relative min-h-screen flex flex-col"
     >
+      {/* Full-bleed background image */}
+      <img
+        src="/images/large_mountain.jpeg"
+        alt=""
+        aria-hidden
+        fetchPriority="high"
+        loading="eager"
+        className="absolute inset-0 w-full h-full object-cover object-center"
+      />
+      {/* Dark overlay — 55% opacity so mountain is visible and text stays readable */}
+      <div className="absolute inset-0 bg-black/55" aria-hidden />
       <div className="relative flex flex-col justify-center flex-1 px-6 md:px-12 pt-24 pb-20">
         <div className="overflow-hidden">
           <motion.h1
