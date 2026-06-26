@@ -20,6 +20,12 @@ declare global {
 }
 
 const FORM_ID = '1hfs3vtvfim'
+const MAX_BYTES = 60 * 1024 * 1024 // 60 MB
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
 
 function SelectArrow() {
   return (
@@ -38,16 +44,29 @@ export default function Commissions() {
   const [type, setType]               = useState('')
   const [size, setSize]               = useState('')
   const [description, setDescription] = useState('')
-  const [file, setFile]               = useState<File | null>(null)
-  const [fileName, setFileName]       = useState('')
+  const [files, setFiles]             = useState<File[]>([])
   const [submitting, setSubmitting]   = useState(false)
   const [succeeded, setSucceeded]     = useState(false)
   const [error, setError]             = useState('')
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0] ?? null
-    setFile(f)
-    setFileName(f?.name ?? '')
+  const totalSize = files.reduce((sum, f) => sum + f.size, 0)
+
+  const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const incoming = Array.from(e.target.files ?? [])
+    const next = [...files, ...incoming]
+    if (next.reduce((sum, f) => sum + f.size, 0) > MAX_BYTES) {
+      setError('Total file size exceeds 60 MB. Please remove a file first.')
+      e.target.value = ''
+      return
+    }
+    setFiles(next)
+    setError('')
+    e.target.value = ''
+  }
+
+  const removeFile = (idx: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== idx))
+    setError('')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -62,7 +81,7 @@ export default function Commissions() {
     fd.append('fi-select-type', type)
     fd.append('fi-select-size', size)
     fd.append('fi-text-description', description)
-    if (file) fd.append('fi-file-reference', file)
+    files.forEach((f) => fd.append('fi-file-reference', f))
 
     try {
       const forminit = new window.Forminit()
@@ -206,9 +225,11 @@ export default function Commissions() {
 
               <FadeIn delay={0.18}>
                 <div>
-                  <label htmlFor="reference" className="block font-sans text-[9px] tracking-[0.4em] uppercase text-white/40 mb-3">
-                    Reference Image (optional)
-                  </label>
+                  <p className="block font-sans text-[9px] tracking-[0.4em] uppercase text-white/40 mb-3">
+                    Reference Images <span className="normal-case tracking-normal text-white/25">(optional)</span>
+                  </p>
+
+                  {/* Upload trigger */}
                   <label
                     htmlFor="reference"
                     className="flex items-center gap-3 py-3 border-b border-white/25 hover:border-white/60 transition-colors cursor-pointer"
@@ -219,10 +240,54 @@ export default function Commissions() {
                       <line x1="12" y1="3" x2="12" y2="15" />
                     </svg>
                     <span className="font-sans text-sm text-white/35">
-                      {fileName || 'Upload JPG or PNG'}
+                      {files.length === 0 ? 'Upload JPGs or PNGs · 60 MB max' : 'Add more photos'}
                     </span>
-                    <input id="reference" type="file" accept=".jpg,.jpeg,.png" onChange={handleFile} className="sr-only" />
+                    <input
+                      id="reference"
+                      type="file"
+                      accept=".jpg,.jpeg,.png"
+                      multiple
+                      onChange={handleFiles}
+                      className="sr-only"
+                    />
                   </label>
+
+                  {/* File list */}
+                  {files.length > 0 && (
+                    <ul className="mt-3 space-y-1">
+                      {files.map((f, i) => (
+                        <li key={i} className="flex items-center gap-2 py-1">
+                          <span className="font-sans text-sm text-white/55 flex-1 truncate min-w-0">{f.name}</span>
+                          <span className="font-sans text-[11px] text-white/25 flex-shrink-0">{formatBytes(f.size)}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeFile(i)}
+                            aria-label={`Remove ${f.name}`}
+                            className="flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center -mr-3 text-white/25 hover:text-white/70 transition-colors"
+                          >
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+                            </svg>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {/* Size bar */}
+                  {files.length > 0 && (
+                    <div className="mt-3 flex items-center gap-3">
+                      <div className="flex-1 h-px bg-white/10 relative overflow-hidden">
+                        <div
+                          className="absolute inset-y-0 left-0 bg-white/40 transition-all duration-300"
+                          style={{ width: `${Math.min(100, (totalSize / MAX_BYTES) * 100)}%` }}
+                        />
+                      </div>
+                      <span className="font-sans text-[10px] text-white/30 flex-shrink-0 tabular-nums">
+                        {formatBytes(totalSize)} / 60 MB
+                      </span>
+                    </div>
+                  )}
                 </div>
               </FadeIn>
 
