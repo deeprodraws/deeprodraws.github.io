@@ -19,13 +19,13 @@
  * }>} */
 export const prints = [
   {
-    slug: 'the-godfather',
-    title: 'The Godfather',
-    image: 'the_godfather.jpeg',
-    aspectClass: 'aspect-[5/6]',
+    slug: 'looking-down',
+    title: 'Looking Down',
+    image: 'jesus_down.jpeg',
+    aspectClass: 'aspect-[4/5]',
     description: '',
     startingPrice: '',
-    mockups: [],
+    mockups: ['mockup-1.png', 'mockup-2.png', 'mockup-3.png'],
   },
   {
     slug: 'eagle',
@@ -34,7 +34,7 @@ export const prints = [
     aspectClass: 'aspect-[5/6]',
     description: '',
     startingPrice: '',
-    mockups: [],
+    mockups: ['mockup-1.png', 'mockup-2.png', 'mockup-3.png'],
   },
   {
     slug: 'puma',
@@ -43,6 +43,6 @@ export const prints = [
     aspectClass: 'aspect-[4/5]',
     description: '',
     startingPrice: '',
-    mockups: [],
+    mockups: ['mockup-1.png', 'mockup-2.png', 'mockup-3.png'],
   },
 ]
