@@ -3,7 +3,7 @@ export default function Marquee() {
     'CHARCOAL ARTIST · DEEPRODRAWS · BELMONT, CA · COMMISSIONS OPEN · ORIGINAL WORK · '
 
   return (
-    <div className="border-y border-white/15 py-4 bg-black overflow-hidden select-none">
+    <div className="border-y border-white/15 py-4 bg-black overflow-hidden select-none marquee-fade">
       <div
         className="flex whitespace-nowrap will-change-transform animate-marquee"
         style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}

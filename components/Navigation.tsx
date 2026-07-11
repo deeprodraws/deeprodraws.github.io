@@ -43,6 +43,7 @@ export default function Navigation() {
       >
         <a
           href="/"
+          data-cursor="Home"
           className="font-serif text-2xl text-white hover:text-white/60 transition-colors duration-200 tracking-widest"
         >
           DEEPRODRAWS

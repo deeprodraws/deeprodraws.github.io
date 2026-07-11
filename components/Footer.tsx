@@ -32,6 +32,7 @@ export default function Footer() {
                 href="https://instagram.com/deeprodraws"
                 target="_blank"
                 rel="noopener noreferrer"
+                data-cursor="Follow"
                 className="flex items-center gap-2.5 font-sans text-sm text-white/50 hover:text-white transition-colors duration-200 min-h-[44px]"
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -43,6 +44,7 @@ export default function Footer() {
               </a>
               <a
                 href="mailto:mikichowdhury@gmail.com"
+                data-cursor="Email"
                 className="flex items-center gap-2.5 font-sans text-sm text-white/50 hover:text-white transition-colors duration-200 min-h-[44px]"
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">

@@ -39,7 +39,7 @@ export default function About() {
             <FadeIn delay={0.1}>
               <div className="grid md:grid-cols-2 gap-10">
                 <p className="font-sans text-lg text-black/65 leading-[1.7]">
-                  I'm Deepro, a charcoal artist based in Belmont, CA. I draw portraits by hand. People, pets, landscapes, the moments worth keeping. No shortcuts, no filters. Just paper, charcoal, and what's real.
+                  I'm Deepro, a charcoal artist based in Belmont, CA. I draw portraits by hand. People, pets, landscapes, the moments worth keeping. Just paper, charcoal, and what's real.
                 </p>
 
                 <div className="space-y-4">

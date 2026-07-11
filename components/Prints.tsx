@@ -22,14 +22,18 @@ export default function Prints() {
           {prints.map((print, i) => (
             <FadeIn key={print.slug} delay={i * 0.08} scale>
               <div className="group overflow-hidden">
-                <div className={`${print.aspectClass} relative overflow-hidden`}>
+                <Link
+                  href={`/prints/${print.slug}`}
+                  data-cursor="View"
+                  className={`${print.aspectClass} relative overflow-hidden block`}
+                >
                   <img
                     src={`/images/mockups/${print.slug}/mockup-1.jpg`}
                     alt={print.title}
                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-200 group-hover:scale-[1.04]"
                     loading="lazy"
                   />
-                </div>
+                </Link>
                 <div className="pt-4 pb-2 flex items-center justify-between">
                   <p className="font-sans text-sm font-semibold text-white">{print.title}</p>
                   <Link

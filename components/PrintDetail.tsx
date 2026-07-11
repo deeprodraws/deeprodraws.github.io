@@ -86,7 +86,8 @@ function MockupGallery({ print }: { print: Print }) {
       <div>
         {/* Gallery strip */}
         <div
-          className="relative overflow-hidden bg-white/5 aspect-[4/5] cursor-zoom-in"
+          className="relative overflow-hidden bg-white/5 aspect-[4/5] cursor-none"
+          data-cursor="Zoom"
           onClick={() => setLightboxOpen(true)}
         >
           <AnimatePresence initial={false} custom={direction} mode="popLayout">

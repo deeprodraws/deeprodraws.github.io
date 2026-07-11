@@ -28,6 +28,7 @@ function ArtworkCard({ artwork, onClick }: { artwork: Artwork; onClick: () => vo
   return (
     <button
       onClick={onClick}
+      data-cursor="View"
       className="group relative w-full text-left overflow-hidden focus-visible:outline focus-visible:outline-1 focus-visible:outline-white"
       aria-label={`Open ${artwork.title}`}
     >
