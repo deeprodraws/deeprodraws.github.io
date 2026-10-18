@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import NewsletterSignup from '@/components/NewsletterSignup'
 
 export const metadata: Metadata = {
   title: 'Hello · DeeproDraws',
@@ -43,14 +44,6 @@ export default function HelloPage() {
         <p className="font-sans text-[13px] text-white/45 text-center mt-3">
           A one-of-a-kind holiday gift. Starts at $90.
         </p>
-
-        {/* TODO: connect to Mailchimp newsletter signup */}
-        <a
-          href="#"
-          className="mt-5 w-full min-h-[52px] px-4 py-3.5 flex items-center justify-center text-center border border-white/30 text-white/70 hover:border-white hover:text-white transition-colors duration-200 font-sans text-[11px] tracking-[0.18em] uppercase leading-snug text-balance"
-        >
-          Get first look at new work and offers
-        </a>
       </section>
 
       <section className="mt-10 -mx-6 bg-white text-black px-5 pt-5 pb-6 text-center">
@@ -63,6 +56,8 @@ export default function HelloPage() {
           Order by December 5
         </p>
       </section>
+
+      <NewsletterSignup />
 
       <p className="font-sans text-[12px] text-white/35 leading-relaxed mt-7">
         Recognized in the 2025 Congressional Art Competition and the San Mateo County Award of
