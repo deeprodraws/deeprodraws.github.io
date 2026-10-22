@@ -1,0 +1,117 @@
+[
+  {
+    "id": "eagle",
+    "title": "Eagle",
+    "forSale": true,
+    "printifyProductId": "6ad961dd9d94429bd0045067",
+    "sizes": {
+      "5x7": {
+        "label": "5×7\"",
+        "priceCents": 1397,
+        "printifyVariantId": 99092
+      },
+      "8x10": {
+        "label": "8×10\"",
+        "priceCents": 1897,
+        "printifyVariantId": 99100
+      },
+      "11x14": {
+        "label": "11×14\"",
+        "priceCents": 2397,
+        "printifyVariantId": 99112
+      }
+    }
+  },
+  {
+    "id": "dog",
+    "title": "Dog",
+    "forSale": true,
+    "printifyProductId": "6ad9759071c2a8db8e09cd88",
+    "sizes": {
+      "5x7": {
+        "label": "5×7\"",
+        "priceCents": 1399,
+        "printifyVariantId": 99092
+      },
+      "8x10": {
+        "label": "8×10\"",
+        "priceCents": 1899,
+        "printifyVariantId": 99100
+      },
+      "11x14": {
+        "label": "11×14\"",
+        "priceCents": 2399,
+        "printifyVariantId": 99112
+      }
+    }
+  },
+  {
+    "id": "cat-in-a-basket",
+    "title": "Cat in a Basket",
+    "forSale": true,
+    "printifyProductId": "6ad97511dc9dac2fce0f8b62",
+    "sizes": {
+      "5x7": {
+        "label": "5×7\"",
+        "priceCents": 1399,
+        "printifyVariantId": 99092
+      },
+      "8x10": {
+        "label": "8×10\"",
+        "priceCents": 1899,
+        "printifyVariantId": 99100
+      },
+      "11x14": {
+        "label": "11×14\"",
+        "priceCents": 2399,
+        "printifyVariantId": 99112
+      }
+    }
+  },
+  {
+    "id": "still-life",
+    "title": "Still Life",
+    "forSale": true,
+    "printifyProductId": "6ad974a43a522ddf8e0a847d",
+    "sizes": {
+      "5x7": {
+        "label": "5×7\"",
+        "priceCents": 1399,
+        "printifyVariantId": 99092
+      },
+      "8x10": {
+        "label": "8×10\"",
+        "priceCents": 1899,
+        "printifyVariantId": 99100
+      },
+      "11x14": {
+        "label": "11×14\"",
+        "priceCents": 2399,
+        "printifyVariantId": 99112
+      }
+    }
+  },
+  {
+    "id": "mountain-landscape",
+    "title": "Mountain Landscape",
+    "forSale": true,
+    "printifyProductId": "6ad975d492ab87333500f7e1",
+    "sizes": {
+      "5x7": {
+        "label": "7×5\" (horizontal)",
+        "priceCents": 1478,
+        "printifyVariantId": 99090
+      },
+      "8x10": {
+        "label": "10×8\" (horizontal)",
+        "priceCents": 1499,
+        "printifyVariantId": 99098
+      },
+      "11x14": {
+        "label": "14×11\" (horizontal)",
+        "priceCents": 1999,
+        "printifyVariantId": 99110
+      }
+    }
+  }
+]

@@ -10,7 +10,9 @@
     "start": "node index.js",
     "dev": "node --watch index.js",
     "shops": "node scripts/list-shops.js",
-    "products": "node scripts/list-products.js"
+    "products": "node scripts/list-products.js",
+    "test-webhook": "node scripts/send-test-webhook.js",
+    "sync-products": "node scripts/sync-products.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

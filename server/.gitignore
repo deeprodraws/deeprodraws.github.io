@@ -6,3 +6,6 @@ node_modules/
 
 # The real test-order file has your address in it, so it stays local too.
 test-order.json
+
+# Your filled-in checkout test request also has your address in it.
+checkout-request.json

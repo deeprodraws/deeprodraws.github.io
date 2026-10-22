@@ -2,11 +2,21 @@
 // The Express server. It sets up the app, defines the routes, and starts
 // listening for requests.
 //
+// HOW A SALE FLOWS THROUGH THIS SERVER:
+//   1. The website sends POST /create-checkout: "this print, this size, ship here".
+//   2. We look up the real price in products.js and ask Square for a checkout
+//      page for that amount. The website sends the customer to that page.
+//   3. The customer pays on Square's page (we never touch the card).
+//   4. Square calls POST /square-webhook: "payment completed".
+//   5. We check the message really came from Square, then order the print
+//      from Printify, shipped to the customer.
+//
 // RENDER FREE TIER NOTE: free services "spin down" after 15 minutes with no
 // traffic. The next request then waits ~30-60 seconds while it wakes up. Once
 // the store is live, set up a keep-alive ping (like before, e.g. cron-job.org
 // or UptimeRobot) that hits GET / every 10-14 minutes so customers never hit
-// a cold start. One always-on free service fits in Render's 750 free hours/month.
+// a cold start, and so Square's webhooks don't arrive while it's asleep. One
+// always-on free service fits in Render's 750 free hours/month.
 
 // Load variables from a local .env file into process.env. On Render there is
 // no .env file; Render injects the variables you set in its dashboard, and
@@ -17,13 +27,29 @@ const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
 const printify = require('./printify');
+const square = require('./square');
+const { CURRENCY, SHIPPING_FEE_CENTS, SHIPPING_COUNTRIES, findPrintSize } = require('./products');
 
 // Fail fast: if a required secret is missing, crash on startup with a clear
 // message, instead of starting "fine" and failing on the first real request.
-const REQUIRED_ENV = ['PRINTIFY_API_KEY', 'PRINTIFY_SHOP_ID'];
+const REQUIRED_ENV = [
+  'PRINTIFY_API_KEY',
+  'PRINTIFY_SHOP_ID',
+  'SQUARE_ACCESS_TOKEN',
+  'SQUARE_LOCATION_ID',
+  'SQUARE_ENVIRONMENT',
+];
 const missing = REQUIRED_ENV.filter((name) => !process.env[name]);
 if (missing.length > 0) {
   console.error(`Missing ${missing.join(', ')}. Add them to your .env file (the server never reads .env.example).`);
+  process.exit(1);
+}
+
+let squareEnvironment;
+try {
+  squareEnvironment = square.getEnvironment();
+} catch (err) {
+  console.error(err.message);
   process.exit(1);
 }
 
@@ -33,6 +59,10 @@ const app = express();
 // 3001 so it doesn't collide with the Next.js site running on 3000.
 const PORT = process.env.PORT || 3001;
 
+// Where Square sends the customer after they pay. Change this once the
+// website has a proper thank-you page.
+const CHECKOUT_REDIRECT_URL = 'https://deeprodraws.com/prints/';
+
 // ---------------------------------------------------------------------------
 // CORS (Cross-Origin Resource Sharing)
 // Browsers block a web page from calling a server on a different domain
@@ -41,13 +71,22 @@ const PORT = process.env.PORT || 3001;
 //
 // CORS is NOT security on its own. It only controls browsers. Tools like curl
 // ignore it completely, which is why sensitive routes also need a password
-// (see requireAdmin below).
+// (see requireAdmin below) or a signature (see /square-webhook).
 // ---------------------------------------------------------------------------
 const ALLOWED_ORIGINS = ['https://deeprodraws.com', 'https://www.deeprodraws.com'];
 app.use(cors({ origin: ALLOWED_ORIGINS }));
 
 // Parse JSON request bodies so routes can read them as req.body.
-app.use(express.json());
+// The `verify` step also keeps an untouched copy of the original text in
+// req.rawBody, because the Square signature check needs the exact bytes
+// Square sent (see square.js).
+app.use(
+  express.json({
+    verify: (req, res, buffer) => {
+      req.rawBody = buffer.toString('utf8');
+    },
+  }),
+);
 
 // ---------------------------------------------------------------------------
 // Admin check
@@ -74,12 +113,266 @@ function requireAdmin(req, res, next) {
 }
 
 // ---------------------------------------------------------------------------
+// Shipping address helpers
+// The address arrives from the website, so we check it before using it.
+// It's stored on the Square order as metadata ("sticky notes"), one note per
+// field. Square allows at most 10 notes per order, each up to 255 characters,
+// which is exactly enough for these 10 fields.
+// ---------------------------------------------------------------------------
+const ADDRESS_FIELDS = [
+  { name: 'first_name', required: true },
+  { name: 'last_name', required: true },
+  { name: 'email', required: true },
+  { name: 'phone', required: false },
+  { name: 'country', required: true },
+  { name: 'region', required: true }, // the state, e.g. "CA"
+  { name: 'address1', required: true },
+  { name: 'address2', required: false },
+  { name: 'city', required: true },
+  { name: 'zip', required: true },
+];
+
+// Returns { address } if it's usable, or { error } explaining what's wrong.
+function validateAddress(input) {
+  if (!input || typeof input !== 'object') {
+    return { error: 'shipping_address is missing.' };
+  }
+
+  const address = {};
+  for (const field of ADDRESS_FIELDS) {
+    const raw = input[field.name];
+    const value = typeof raw === 'string' ? raw.trim() : '';
+    if (field.required && !value) {
+      return { error: `shipping_address.${field.name} is required.` };
+    }
+    if (value.length > 200) {
+      return { error: `shipping_address.${field.name} is too long.` };
+    }
+    address[field.name] = value;
+  }
+
+  address.country = address.country.toUpperCase();
+  if (!SHIPPING_COUNTRIES.includes(address.country)) {
+    return { error: `Sorry, we only ship to: ${SHIPPING_COUNTRIES.join(', ')}.` };
+  }
+  if (!address.email.includes('@')) {
+    return { error: 'shipping_address.email does not look like an email address.' };
+  }
+
+  return { address };
+}
+
+// Address -> Square metadata. Empty optional fields are left out.
+function addressToMetadata(address) {
+  const metadata = {};
+  for (const field of ADDRESS_FIELDS) {
+    if (address[field.name]) metadata[`ship_${field.name}`] = address[field.name];
+  }
+  return metadata;
+}
+
+// Square metadata -> address in the shape Printify expects.
+function metadataToAddress(metadata = {}) {
+  const address = {};
+  for (const field of ADDRESS_FIELDS) {
+    address[field.name] = metadata[`ship_${field.name}`] || '';
+  }
+  return address;
+}
+
+// ---------------------------------------------------------------------------
 // GET /  (health check)
 // Lets you, Render, and your keep-alive ping confirm the server is up.
 // ---------------------------------------------------------------------------
 app.get('/', (req, res) => {
   res.send('ok');
 });
+
+// ---------------------------------------------------------------------------
+// POST /create-checkout
+// Called by the website when a customer clicks "Buy". It expects JSON like:
+//   { "product_id": "eagle", "size": "11x14", "quantity": 1,
+//     "shipping_address": { first_name, last_name, email, ... } }
+// and replies with { "checkout_url": "https://square.link/..." }.
+// The website then sends the customer to that URL to pay.
+//
+// Notice what the website does NOT send: a price. See products.js for why.
+// ---------------------------------------------------------------------------
+app.post('/create-checkout', async (req, res) => {
+  const { product_id, size, quantity = 1, shipping_address } = req.body || {};
+
+  const match = findPrintSize(product_id, size);
+  if (!match) {
+    return res.status(400).json({ error: 'That print or size is not available.' });
+  }
+
+  const qty = Number(quantity);
+  if (!Number.isInteger(qty) || qty < 1 || qty > 10) {
+    return res.status(400).json({ error: 'Quantity must be a whole number from 1 to 10.' });
+  }
+
+  const { address, error } = validateAddress(shipping_address);
+  if (error) {
+    return res.status(400).json({ error });
+  }
+
+  const { print, size: printSize, sizeKey } = match;
+
+  try {
+    const paymentLink = await square.createPaymentLink({
+      lineItem: {
+        name: `${print.title} print, ${printSize.label}`,
+        quantity: String(qty),
+        // The price comes from products.js, never from the request.
+        base_price_money: { amount: printSize.priceCents, currency: CURRENCY },
+        // Sticky notes saying exactly what to order from Printify once paid.
+        metadata: {
+          product_id: print.id,
+          size: sizeKey,
+          printify_product_id: String(printSize.printifyProductId),
+          printify_variant_id: String(printSize.printifyVariantId),
+        },
+      },
+      shippingFeeCents: SHIPPING_FEE_CENTS,
+      currency: CURRENCY,
+      buyerEmail: address.email,
+      orderMetadata: addressToMetadata(address),
+      redirectUrl: CHECKOUT_REDIRECT_URL,
+    });
+
+    console.log(`[checkout] created Square order ${paymentLink.order_id} for ${print.id} ${sizeKey} x${qty}`);
+    res.json({ checkout_url: paymentLink.url, square_order_id: paymentLink.order_id });
+  } catch (err) {
+    // The full error is in the server log. Customers get a plain message,
+    // because error details can reveal how the system works inside.
+    console.error('[checkout] failed:', err.message);
+
+    // One Square error is the customer's to fix, so tell them plainly.
+    if (err.details?.errors?.some((e) => e.code === 'INVALID_EMAIL_ADDRESS')) {
+      return res.status(400).json({ error: 'That email address was not accepted. Please check it and try again.' });
+    }
+    res.status(502).json({ error: 'Could not start checkout. Please try again in a moment.' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /square-webhook
+// Square calls this when something happens with a payment. We only act on
+// one thing: a payment reaching COMPLETED, meaning the money is ours.
+//
+// STEP 1, THE CRITICAL ONE: check the signature (see square.js for how).
+// This address is public. Without this check, anyone could send a fake
+// "payment completed" and get prints shipped for free. Anything that fails
+// is rejected before we read a single field of it.
+//
+// We then reply 200 ("got it") right away and do the Printify work after.
+// Square expects a fast answer; if we're slow, it assumes we missed the
+// message and sends it again.
+// ---------------------------------------------------------------------------
+
+// Square can send the same news more than once (a "payment.created" and a
+// "payment.updated" for the same payment, or retries). This remembers which
+// Square orders we've already handled, so each sale is ordered only once.
+// It resets when the server restarts; Printify's rule that every order must
+// have a unique external_id (we use the Square order ID) is the backup guard.
+const handledSquareOrders = new Set();
+
+app.post('/square-webhook', (req, res) => {
+  let valid;
+  try {
+    valid = square.isValidWebhookSignature({
+      rawBody: req.rawBody,
+      signatureHeader: req.get('x-square-hmacsha256-signature'),
+    });
+  } catch (err) {
+    // The key or URL isn't configured. Answer with an error so Square tries
+    // again later, after you've fixed the settings.
+    console.error('[webhook] cannot check signatures:', err.message);
+    return res.sendStatus(500);
+  }
+
+  if (!valid) {
+    console.warn('[webhook] REJECTED: signature did not match. Ignoring this request.');
+    return res.sendStatus(403);
+  }
+
+  res.sendStatus(200);
+
+  handleSquareEvent(req.body).catch((err) => {
+    console.error('[webhook] failed while handling event:', err.message);
+  });
+});
+
+async function handleSquareEvent(event) {
+  if (event.type !== 'payment.created' && event.type !== 'payment.updated') {
+    console.log(`[webhook] ignoring event type ${event.type}`);
+    return;
+  }
+
+  const payment = event.data?.object?.payment;
+  if (!payment || payment.status !== 'COMPLETED') {
+    console.log(`[webhook] payment ${payment?.id} is ${payment?.status}, nothing to do yet`);
+    return;
+  }
+
+  const squareOrderId = payment.order_id;
+  if (!squareOrderId) {
+    console.log(`[webhook] payment ${payment.id} has no order, so it isn't an online print sale`);
+    return;
+  }
+
+  if (handledSquareOrders.has(squareOrderId)) {
+    console.log(`[webhook] already handled Square order ${squareOrderId}, skipping duplicate`);
+    return;
+  }
+  handledSquareOrders.add(squareOrderId);
+
+  let printifyOrderId;
+  try {
+    // Read back the sticky notes /create-checkout attached to this order.
+    const order = await square.getOrder(squareOrderId);
+    const item = order.line_items?.find((lineItem) => lineItem.metadata?.printify_variant_id);
+    if (!item) {
+      // Payments from your Square account that didn't come from
+      // /create-checkout (e.g. an in-person sale at an art fair) land here.
+      console.log(`[webhook] Square order ${squareOrderId} has no print notes, so it isn't an online print sale`);
+      return;
+    }
+
+    const created = await printify.createOrder({
+      productId: item.metadata.printify_product_id,
+      variantId: item.metadata.printify_variant_id,
+      quantity: Number(item.quantity),
+      address: metadataToAddress(order.metadata),
+      externalId: squareOrderId,
+      label: `Square ${squareOrderId}`,
+    });
+    printifyOrderId = created.id;
+    console.log(`[webhook] paid! Created Printify order ${printifyOrderId} for Square order ${squareOrderId}`);
+
+    if (squareEnvironment === 'sandbox') {
+      // Square's sandbox uses fake money, but Printify has no sandbox: this
+      // is a REAL Printify order. Cancel it so a practice purchase never prints.
+      console.log('[webhook] sandbox mode: canceling the Printify order so nothing prints');
+      await printify.cancelWhenReady(printifyOrderId);
+    } else {
+      // Live mode: the order waits in Printify as "on-hold" because your
+      // store uses manual approval. Approve it in Printify to print and ship.
+      // To skip that step later, call Printify's send_to_production endpoint here.
+      console.log(`[webhook] Printify order ${printifyOrderId} is waiting for your approval in Printify`);
+    }
+  } catch (err) {
+    if (!printifyOrderId) {
+      // Nothing reached Printify, so allow a later retry to try again.
+      handledSquareOrders.delete(squareOrderId);
+    }
+    console.error(
+      `[webhook] ACTION NEEDED for Square order ${squareOrderId}` +
+        (printifyOrderId ? ` (Printify order ${printifyOrderId})` : '') +
+        `: ${err.message.replace(/\.$/, '')}. Check this order by hand in Square and Printify.`,
+    );
+  }
+}
 
 // ---------------------------------------------------------------------------
 // POST /test-printify-order
@@ -90,15 +383,6 @@ app.get('/', (req, res) => {
 //   2. Waits until Printify has finished setting it up (up to 60 seconds).
 //   3. Cancels it immediately, so it can never go to production.
 // You'll see the canceled order in your Printify dashboard as proof it worked.
-//
-// TO SWITCH TO REAL ORDERS LATER (payments stage):
-//   - Only create the order AFTER a payment is confirmed (from the payment
-//     webhook, never directly from the browser).
-//   - Remove the cancel step.
-//   - Either leave the store on manual approval and approve orders yourself
-//     in Printify, or send them straight to production by calling
-//     POST /shops/{shop_id}/orders/{order_id}/send_to_production.json.
-//   - Build the address from the customer's checkout instead of req.body.
 // ---------------------------------------------------------------------------
 app.post('/test-printify-order', requireAdmin, async (req, res) => {
   const { product_id, variant_id, quantity = 1, address_to } = req.body || {};
@@ -111,7 +395,6 @@ app.post('/test-printify-order', requireAdmin, async (req, res) => {
 
   let orderId;
   try {
-    // Step 1: create the order.
     const created = await printify.createOrder({
       productId: product_id,
       variantId: variant_id,
@@ -123,27 +406,13 @@ app.post('/test-printify-order', requireAdmin, async (req, res) => {
     orderId = created.id;
     console.log(`[test-order] created Printify order ${orderId}`);
 
-    // Step 2: a new order moves through setup stages ("pending", then
-    // "cost-calculation", ...) and Printify only allows canceling once it
-    // reaches one of the stages below. Check every 2 seconds, for up to 60.
-    const CANCELABLE = ['on-hold', 'payment-not-received'];
-    let order = await printify.getOrder(orderId);
-    for (let tries = 0; !CANCELABLE.includes(order.status) && tries < 30; tries++) {
-      console.log(`[test-order] order ${orderId} is "${order.status}", waiting...`);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      order = await printify.getOrder(orderId);
-    }
-    console.log(`[test-order] order ${orderId} status before cancel: ${order.status}`);
-
-    // Step 3: cancel it.
-    await printify.cancelOrder(orderId);
-    console.log(`[test-order] canceled order ${orderId}`);
+    const statusBeforeCancel = await printify.cancelWhenReady(orderId);
 
     res.json({
       ok: true,
       message: 'Printify connection works. A test order was created and then canceled.',
       printify_order_id: orderId,
-      status_before_cancel: order.status,
+      status_before_cancel: statusBeforeCancel,
     });
   } catch (err) {
     console.error('[test-order] failed:', err.message);
@@ -165,4 +434,8 @@ app.post('/test-printify-order', requireAdmin, async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`deeprodraws-server listening on port ${PORT}`);
+  console.log(`Square mode: ${squareEnvironment}${squareEnvironment === 'sandbox' ? ' (test cards, fake money)' : ' (REAL MONEY)'}`);
+  if (!process.env.SQUARE_WEBHOOK_SIGNATURE_KEY || !process.env.SQUARE_WEBHOOK_URL) {
+    console.warn('SQUARE_WEBHOOK_SIGNATURE_KEY or SQUARE_WEBHOOK_URL is not set, so /square-webhook will refuse events.');
+  }
 });

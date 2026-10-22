@@ -162,6 +162,26 @@ async function cancelOrder(orderId) {
   return printifyRequest('POST', `/shops/${shopId}/orders/${orderId}/cancel.json`);
 }
 
+// Waits for a brand-new order to finish Printify's setup stages, then cancels
+// it. A new order moves through "pending", then "cost-calculation", and only
+// once it reaches one of the CANCELABLE stages will Printify accept a cancel.
+// Checks every 2 seconds, for up to 60. Returns the status it had before canceling.
+const CANCELABLE = ['on-hold', 'payment-not-received'];
+
+async function cancelWhenReady(orderId) {
+  let order = await getOrder(orderId);
+  for (let tries = 0; !CANCELABLE.includes(order.status) && tries < 30; tries++) {
+    console.log(`[printify] order ${orderId} is "${order.status}", waiting...`);
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    order = await getOrder(orderId);
+  }
+  console.log(`[printify] order ${orderId} status before cancel: ${order.status}`);
+
+  await cancelOrder(orderId);
+  console.log(`[printify] canceled order ${orderId}`);
+  return order.status;
+}
+
 module.exports = {
   PrintifyError,
   listShops,
@@ -169,4 +189,5 @@ module.exports = {
   createOrder,
   getOrder,
   cancelOrder,
+  cancelWhenReady,
 };
