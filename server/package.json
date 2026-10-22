@@ -1,0 +1,20 @@
+{
+  "name": "deeprodraws-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "shops": "node scripts/list-shops.js",
+    "products": "node scripts/list-products.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^4.21.2"
+  }
+}

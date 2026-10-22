@@ -1,0 +1,8 @@
+# Installed packages are rebuilt from package.json, so they never go in git.
+node_modules/
+
+# Your real secrets live here. Never commit this file.
+.env
+
+# The real test-order file has your address in it, so it stays local too.
+test-order.json

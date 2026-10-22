@@ -1,0 +1,17 @@
+{
+  "product_id": "PASTE_PRODUCT_ID_FROM_npm_run_products",
+  "variant_id": 12345,
+  "quantity": 1,
+  "address_to": {
+    "first_name": "Test",
+    "last_name": "Order",
+    "email": "you@example.com",
+    "phone": "",
+    "country": "US",
+    "region": "CA",
+    "address1": "123 Example St",
+    "address2": "",
+    "city": "Belmont",
+    "zip": "94002"
+  }
+}
