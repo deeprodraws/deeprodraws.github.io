@@ -24,7 +24,7 @@ export default function PrintsIndexPage() {
               PRINTS
             </h1>
             <p className="font-sans text-sm text-white/45 mt-6 max-w-md leading-relaxed">
-              Original charcoal work, printed on archival paper and shipped free within the US.
+              Original charcoal work, printed on archival paper and shipped free within the U.S.
             </p>
           </div>
 
@@ -50,7 +50,7 @@ export default function PrintsIndexPage() {
                       {print.title}
                     </p>
                     <p className="font-sans text-[9px] tracking-[0.3em] uppercase text-white/35 mt-1">
-                      From {print.startingPrice} · Free US shipping
+                      From {print.startingPrice} · Free U.S. shipping
                     </p>
                   </div>
                   <Link

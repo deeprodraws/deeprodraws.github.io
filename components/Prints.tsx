@@ -14,7 +14,7 @@ export default function Prints() {
             TAKE ONE HOME
           </h2>
           <p className="font-sans text-sm text-white/45 leading-relaxed mt-5 max-w-md">
-            Original charcoal artwork available as high-quality prints. Free shipping within the US.
+            Original charcoal artwork available as high-quality prints. Free shipping within the U.S.
           </p>
         </FadeIn>
 

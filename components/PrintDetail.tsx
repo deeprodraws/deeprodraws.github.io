@@ -200,7 +200,7 @@ function FreeShippingBadge() {
         <circle cx="5.5" cy="18.5" r="2" />
         <circle cx="18.5" cy="18.5" r="2" />
       </svg>
-      Free US shipping
+      Free U.S. shipping
     </span>
   )
 }
