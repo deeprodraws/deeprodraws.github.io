@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import FadeIn from './FadeIn'
-import { prints } from '@/data/prints'
+import { prints, coverImage } from '@/data/prints'
 
 export default function Prints() {
   return (
@@ -14,21 +14,21 @@ export default function Prints() {
             TAKE ONE HOME
           </h2>
           <p className="font-sans text-sm text-white/45 leading-relaxed mt-5 max-w-md">
-            Original charcoal artwork available as high-quality prints, fulfilled through Printful.
+            Original charcoal artwork available as high-quality prints. Free shipping within the US.
           </p>
         </FadeIn>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {prints.map((print, i) => (
             <FadeIn key={print.slug} delay={i * 0.08} scale>
-              <div className="group overflow-hidden">
+              <div className="overflow-hidden">
                 <Link
                   href={`/prints/${print.slug}`}
                   data-cursor="View"
-                  className={`${print.aspectClass} relative overflow-hidden block`}
+                  className={`group ${print.aspectClass} relative overflow-hidden block`}
                 >
                   <img
-                    src={`/images/mockups/${print.slug}/mockup-1.jpg`}
+                    src={coverImage(print)}
                     alt={print.title}
                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-200 group-hover:scale-[1.04]"
                     loading="lazy"

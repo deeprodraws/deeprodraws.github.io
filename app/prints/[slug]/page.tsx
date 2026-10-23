@@ -12,7 +12,7 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
   const print = prints.find((p) => p.slug === params.slug)
   return {
     title: print ? `${print.title} Print — DeeproDraws` : 'Print — DeeproDraws',
-    description: print?.description || 'Order a charcoal art print from DeeproDraws.',
+    description: print?.description[0] || 'Order a charcoal art print from DeeproDraws.',
   }
 }
 

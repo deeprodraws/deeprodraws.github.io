@@ -24,29 +24,33 @@ export default function PrintsIndexPage() {
               PRINTS
             </h1>
             <p className="font-sans text-sm text-white/45 mt-6 max-w-md leading-relaxed">
-              Original charcoal work, printed on premium paper and shipped to your door.
+              Original charcoal work, printed on archival paper and shipped free within the US.
             </p>
           </div>
 
           {/* Grid */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-12">
             {prints.map((print) => (
-              <div key={print.slug} className="group">
-                <div className={`${print.aspectClass} relative overflow-hidden mb-4`}>
+              <div key={print.slug}>
+                <Link
+                  href={`/prints/${print.slug}`}
+                  data-cursor="View"
+                  className={`group ${print.aspectClass} relative overflow-hidden mb-4 block`}
+                >
                   <img
                     src={`/images/${print.image}`}
                     alt={print.title}
                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-200 group-hover:scale-[1.04]"
                     loading="lazy"
                   />
-                </div>
+                </Link>
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="font-sans text-sm font-semibold text-white leading-tight">
                       {print.title}
                     </p>
                     <p className="font-sans text-[9px] tracking-[0.3em] uppercase text-white/35 mt-1">
-                      Available as print
+                      From {print.startingPrice} · Free US shipping
                     </p>
                   </div>
                   <Link

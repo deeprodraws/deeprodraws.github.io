@@ -3,24 +3,13 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-declare global {
-  interface Window {
-    Forminit: new () => {
-      submit(
-        formId: string,
-        payload: FormData
-      ): Promise<{
-        data?: { hashId: string; date: string }
-        redirectUrl?: string
-        error?: { error: string; code: number; message: string }
-      }>
-    }
-  }
-}
+// The store server that creates Square checkouts. For testing the Buy button
+// against the server on your laptop, put
+//   NEXT_PUBLIC_STORE_API_URL=http://localhost:3001
+// in a file called .env.local in this folder.
+const STORE_API_URL = process.env.NEXT_PUBLIC_STORE_API_URL || 'https://deeprodraws-server.onrender.com'
 
-const FORM_ID = '1hfs3vtvfim'
-
-const SIZES = ['8×10"', '11×14"', '16×20"', 'Custom']
+const MAX_QUANTITY = 10
 
 const labelCls = 'block font-sans text-[9px] tracking-[0.4em] uppercase text-white/40 mb-3'
 
@@ -29,21 +18,10 @@ type Print = {
   title: string
   image: string
   aspectClass: string
-  description: string
+  description: string[]
   startingPrice: string
   mockups: string[]
-}
-
-function SelectArrow() {
-  return (
-    <svg
-      className="absolute right-0 bottom-3 pointer-events-none text-white/35"
-      width="10" height="10" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2"
-    >
-      <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
+  sizes: { key: string; label: string; priceCents: number; price: string }[]
 }
 
 function MockupGallery({ print }: { print: Print }) {
@@ -86,7 +64,7 @@ function MockupGallery({ print }: { print: Print }) {
       <div>
         {/* Gallery strip */}
         <div
-          className="relative overflow-hidden bg-white/5 aspect-[4/5] cursor-none"
+          className={`relative overflow-hidden bg-white/5 cursor-none ${print.mockups.length > 0 ? 'aspect-[4/5]' : print.aspectClass}`}
           data-cursor="Zoom"
           onClick={() => setLightboxOpen(true)}
         >
@@ -214,144 +192,149 @@ function MockupGallery({ print }: { print: Print }) {
   )
 }
 
-function PrintOrderForm({ print }: { print: Print }) {
-  const [fullName, setFullName]     = useState('')
-  const [email, setEmail]           = useState('')
-  const [size, setSize]             = useState('')
-  const [address, setAddress]       = useState('')
-  const [notes, setNotes]           = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [succeeded, setSucceeded]   = useState(false)
-  const [error, setError]           = useState('')
+function FreeShippingBadge() {
+  return (
+    <span className="inline-flex items-center gap-2 border border-white/60 px-3 py-1.5 font-sans text-[10px] tracking-[0.25em] uppercase text-white font-semibold">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+        <path d="M1 3h15v13H1zM16 8h4l3 3v5h-7z" strokeLinejoin="round" />
+        <circle cx="5.5" cy="18.5" r="2" />
+        <circle cx="18.5" cy="18.5" r="2" />
+      </svg>
+      Free US shipping
+    </span>
+  )
+}
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubmitting(true)
+const formatPrice = (cents: number) => `$${(cents / 100).toFixed(2)}`
+
+function BuyBox({ print }: { print: Print }) {
+  const [sizeKey, setSizeKey] = useState(print.sizes[0].key)
+  const [quantity, setQuantity] = useState(1)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const size = print.sizes.find((s) => s.key === sizeKey) ?? print.sizes[0]
+  const total = formatPrice(size.priceCents * quantity)
+
+  // If the customer leaves Square's page with the Back button, the browser can
+  // restore this page exactly as it was, still saying "Opening checkout".
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setLoading(false)
+    }
+    window.addEventListener('pageshow', onPageShow)
+    return () => window.removeEventListener('pageshow', onPageShow)
+  }, [])
+
+  // Only the print, size, and quantity are sent. The server looks up the
+  // price itself, so nothing on this page can change what gets charged.
+  const buy = async () => {
+    setLoading(true)
     setError('')
-
-    const fd = new FormData()
-    fd.append('fi-sender-fullName', fullName)
-    fd.append('fi-sender-email', email)
-    fd.append('fi-text-printTitle', print.title)
-    fd.append('fi-select-size', size)
-    fd.append('fi-text-shippingAddress', address)
-    if (notes) fd.append('fi-text-notes', notes)
-
     try {
-      const forminit = new window.Forminit()
-      const { error: err } = await forminit.submit(FORM_ID, fd)
-      if (err) {
-        setError(err.message || `Something went wrong. Email me at mikichowdhury@gmail.com`)
-      } else {
-        setSucceeded(true)
+      const res = await fetch(`${STORE_API_URL}/create-checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: print.slug, size: sizeKey, quantity }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.checkout_url) {
+        throw new Error(data.error || 'Could not start checkout. Please try again in a moment.')
       }
-    } catch (e: unknown) {
+      window.location.href = data.checkout_url
+    } catch (e) {
+      setLoading(false)
+      // A TypeError means the server couldn't be reached at all.
       setError(
-        e instanceof Error
+        e instanceof Error && !(e instanceof TypeError)
           ? e.message
-          : `Something went wrong. Email me at mikichowdhury@gmail.com`
+          : 'Could not reach checkout. Please try again in a moment.'
       )
-    } finally {
-      setSubmitting(false)
     }
   }
 
-  if (succeeded) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="py-10"
-      >
-        <div className="w-10 h-10 border border-white flex items-center justify-center mb-6">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5">
-            <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-        <p className="font-serif text-4xl text-white mb-3">Got it!</p>
-        <p className="font-sans text-sm text-white/45 leading-relaxed max-w-sm">
-          I'll follow up within 48 hours with payment details.
-        </p>
-      </motion.div>
-    )
-  }
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      <div className="grid sm:grid-cols-2 gap-x-8 gap-y-8">
-        <div>
-          <label htmlFor={`name-${print.slug}`} className={labelCls}>Full Name</label>
-          <input
-            id={`name-${print.slug}`} type="text" required
-            placeholder="Your name"
-            value={fullName} onChange={(e) => setFullName(e.target.value)}
-            className="input-bare"
-          />
+    <div className="space-y-8">
+      <fieldset>
+        <legend className={labelCls}>Size</legend>
+        <div className="grid grid-cols-3 gap-2">
+          {print.sizes.map((s) => {
+            const selected = s.key === sizeKey
+            return (
+              <label
+                key={s.key}
+                className={`cursor-pointer border px-2 py-3 text-center transition-colors duration-200 min-h-[44px] has-[:focus-visible]:outline has-[:focus-visible]:outline-1 has-[:focus-visible]:outline-white has-[:focus-visible]:outline-offset-2 ${
+                  selected ? 'border-white bg-white text-black' : 'border-white/20 text-white/70 hover:border-white/50'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name={`size-${print.slug}`}
+                  value={s.key}
+                  checked={selected}
+                  onChange={() => setSizeKey(s.key)}
+                  className="sr-only"
+                />
+                <span className="block font-sans text-xs font-semibold leading-snug">{s.label}</span>
+                <span className={`block font-sans text-[11px] mt-1 tabular-nums ${selected ? 'text-black/60' : 'text-white/40'}`}>
+                  {s.price}
+                </span>
+              </label>
+            )
+          })}
         </div>
-        <div>
-          <label htmlFor={`email-${print.slug}`} className={labelCls}>Email</label>
-          <input
-            id={`email-${print.slug}`} type="email" required
-            placeholder="your@email.com"
-            value={email} onChange={(e) => setEmail(e.target.value)}
-            className="input-bare"
-          />
-        </div>
-      </div>
+      </fieldset>
 
       <div>
-        <label htmlFor={`size-${print.slug}`} className={labelCls}>Size Preference</label>
-        <div className="relative">
-          <select
-            id={`size-${print.slug}`} required
-            value={size} onChange={(e) => setSize(e.target.value)}
-            className="input-bare appearance-none w-full pr-6"
+        <p className={labelCls} id={`qty-${print.slug}`}>Quantity</p>
+        <div className="flex items-center border border-white/20 w-fit" role="group" aria-labelledby={`qty-${print.slug}`}>
+          <button
+            type="button"
+            onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+            disabled={quantity <= 1}
+            aria-label="Decrease quantity"
+            className="w-11 h-11 flex items-center justify-center text-white/70 hover:text-white disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
           >
-            <option value="" disabled>Select size</option>
-            {SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <SelectArrow />
+            −
+          </button>
+          <span className="w-10 text-center font-sans text-sm text-white tabular-nums" aria-live="polite">
+            {quantity}
+          </span>
+          <button
+            type="button"
+            onClick={() => setQuantity((q) => Math.min(MAX_QUANTITY, q + 1))}
+            disabled={quantity >= MAX_QUANTITY}
+            aria-label="Increase quantity"
+            className="w-11 h-11 flex items-center justify-center text-white/70 hover:text-white disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+          >
+            +
+          </button>
         </div>
       </div>
-
-      <div>
-        <label htmlFor={`address-${print.slug}`} className={labelCls}>Shipping Address</label>
-        <textarea
-          id={`address-${print.slug}`} required rows={2}
-          placeholder="Street, city, state, zip, country"
-          value={address} onChange={(e) => setAddress(e.target.value)}
-          className="input-bare resize-none"
-        />
-      </div>
-
-      <div>
-        <label htmlFor={`notes-${print.slug}`} className={labelCls}>Notes (optional)</label>
-        <textarea
-          id={`notes-${print.slug}`} rows={2}
-          placeholder="Any special requests or framing preferences…"
-          value={notes} onChange={(e) => setNotes(e.target.value)}
-          className="input-bare resize-none"
-        />
-      </div>
-
-      {error && (
-        <p className="font-sans text-xs text-red-400">{error}</p>
-      )}
 
       <div>
         <button
-          type="submit"
-          disabled={submitting}
-          className="font-sans text-[11px] tracking-[0.3em] uppercase bg-white text-black px-10 py-4 hover:bg-white/80 transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed font-semibold min-h-[44px]"
+          type="button"
+          onClick={buy}
+          disabled={loading}
+          data-cursor="Buy"
+          className="w-full sm:w-auto font-sans text-[11px] tracking-[0.3em] uppercase bg-white text-black px-10 py-4 hover:bg-white/80 transition-colors duration-200 disabled:opacity-60 disabled:cursor-wait font-semibold min-h-[44px] tabular-nums"
         >
-          {submitting ? 'Sending…' : 'Request This Print'}
+          {loading ? 'Opening secure checkout…' : `Buy now · ${total}`}
         </button>
-        <p className="font-sans text-xs text-white/25 mt-4 leading-relaxed">
-          Payment handled directly after inquiry. Fulfilled and shipped through Printful.
+
+        {error && (
+          <p role="alert" className="font-sans text-xs text-red-400 mt-4">{error}</p>
+        )}
+
+        <div className="mt-5">
+          <FreeShippingBadge />
+        </div>
+        <p className="font-sans text-xs text-white/30 mt-3 leading-relaxed max-w-sm">
+          Secure checkout by Square. Each print is made to order and shipped flat, ready to frame.
         </p>
       </div>
-    </form>
+    </div>
   )
 }
 
@@ -370,40 +353,31 @@ export default function PrintDetail({ print }: { print: Print }) {
           {/* Left: mockup gallery */}
           <MockupGallery print={print} />
 
-          {/* Right: info + form */}
+          {/* Right: info + buy box */}
           <div>
             <h1 className="font-serif text-[clamp(3rem,8vw,6rem)] leading-[0.88] text-white mb-6">
               {print.title.toUpperCase()}
             </h1>
 
-            {print.description && (
-              <p className="font-sans text-sm text-white/55 leading-relaxed mb-8 max-w-sm">
-                {print.description}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 mb-8">
+              <p className="font-sans text-sm text-white/40">
+                From <span className="text-white">{print.startingPrice}</span>
               </p>
-            )}
-
-            {/* Sizes */}
-            <div className="mb-6">
-              <p className={labelCls.replace('mb-3', 'mb-4')}>Available Sizes</p>
-              <div className="flex flex-wrap gap-2">
-                {SIZES.map((s) => (
-                  <span key={s} className="font-sans text-xs text-white/60 border border-white/20 px-3 py-1.5">
-                    {s}
-                  </span>
-                ))}
-              </div>
+              <FreeShippingBadge />
             </div>
 
-            {/* Price */}
-            <p className="font-sans text-sm text-white/40 mb-10">
-              {print.startingPrice
-                ? <>Starting at <span className="text-white">{print.startingPrice}</span></>
-                : 'Pricing confirmed after inquiry'}
-            </p>
+            {print.description.length > 0 && (
+              <div className="space-y-4 mb-10 max-w-md">
+                {print.description.map((paragraph, i) => (
+                  <p key={i} className="font-sans text-sm text-white/55 leading-relaxed">
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
+            )}
 
             <div className="border-t border-white/10 pt-10">
-              <p className={labelCls}>Order This Print</p>
-              <PrintOrderForm print={print} />
+              <BuyBox print={print} />
             </div>
           </div>
         </div>
