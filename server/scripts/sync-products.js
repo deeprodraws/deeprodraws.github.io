@@ -5,8 +5,8 @@
 //   npm run sync-products              (update catalog.json)
 //   npm run sync-products -- --dry-run (only show what WOULD change)
 //
-// What it keeps from your existing catalog.json: each print's "id", "title",
-// and "forSale", matched by Printify product ID. Everything else (sizes,
+// What it keeps from your existing catalog.json: each print's "id" and
+// "forSale", matched by Printify product ID. Everything else (title, sizes,
 // prices, variant IDs) comes fresh from Printify.
 
 const fs = require('fs');
@@ -37,7 +37,7 @@ function parseSize(variantTitle) {
 }
 
 // 'Dog Drawing Charcoal Print | Archival Matte Wall Art' -> 'Dog'.
-// Only used for brand-new products; you can rename them in catalog.json.
+// Short titles like 'Keen Eye' come through unchanged.
 function shortTitle(printifyTitle) {
   const filler = new Set(['charcoal', 'drawing', 'print']);
   return printifyTitle
@@ -75,11 +75,12 @@ async function main() {
     const orderedSizes = {};
     for (const key of SIZE_KEYS) if (sizes[key]) orderedSizes[key] = sizes[key];
 
+    const title = shortTitle(product.title);
     let entry;
     if (old) {
-      entry = { id: old.id, title: old.title, forSale: old.forSale, printifyProductId: product.id, sizes: orderedSizes };
+      entry = { id: old.id, title, forSale: old.forSale, printifyProductId: product.id, sizes: orderedSizes };
+      if (old.title !== title) changes.push(`~ "${old.title}" renamed to "${title}"`);
     } else {
-      const title = shortTitle(product.title);
       let id = slugify(title);
       for (let n = 2; usedIds.has(id); n++) id = `${slugify(title)}-${n}`;
       usedIds.add(id);

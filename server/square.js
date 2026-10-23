@@ -95,15 +95,15 @@ async function squareRequest(method, path, body) {
 
 // Creates a Square-hosted checkout page and returns its link.
 //
-// We send Square a full "order": the line item with the price WE looked up,
-// plus a shipping fee. Square shows that page to the customer and handles the
-// card. We never see or store card numbers, which is a big part of why using
-// a hosted checkout is the safe choice.
+// We send Square a full "order" containing the line item with the price WE
+// looked up. Square's page collects the card and the shipping address, so we
+// never see or store card numbers. That's a big part of why using a hosted
+// checkout is the safe choice.
 //
-// `metadata` is a set of little sticky notes we attach to the order (what was
-// bought, where to ship it). When the payment webhook arrives later, we read
-// the notes back to know what to send to Printify.
-async function createPaymentLink({ lineItem, shippingFeeCents, currency, buyerEmail, orderMetadata, redirectUrl }) {
+// The line item carries `metadata`: little sticky notes saying which print and
+// size this is. When the payment webhook arrives later, we read the notes back
+// to know what to order from Printify.
+async function createPaymentLink({ lineItem, redirectUrl }) {
   const locationId = requireEnv('SQUARE_LOCATION_ID');
 
   const result = await squareRequest('POST', '/v2/online-checkout/payment-links', {
@@ -112,31 +112,20 @@ async function createPaymentLink({ lineItem, shippingFeeCents, currency, buyerEm
     idempotency_key: crypto.randomUUID(),
     order: {
       location_id: locationId,
-      line_items: [
-        lineItem,
-        // Shipping is its own line item rather than Square's "shipping_fee"
-        // option, because that option makes Square's page ask for a second
-        // shipping address, which could differ from the one we saved.
-        {
-          name: 'Shipping (flat rate)',
-          quantity: '1',
-          base_price_money: { amount: shippingFeeCents, currency },
-        },
-      ],
-      metadata: orderMetadata,
+      line_items: [lineItem],
     },
     checkout_options: {
       redirect_url: redirectUrl,
-    },
-    pre_populated_data: {
-      buyer_email: buyerEmail,
+      // Square's page asks for the shipping address (Apple Pay and Google Pay
+      // can fill it in). After payment, Square saves it on the order.
+      ask_for_shipping_address: true,
     },
   });
 
   return result.payment_link;
 }
 
-// Fetches an order, including the metadata sticky notes we attached.
+// Fetches an order, including our sticky notes and the shipping address.
 async function getOrder(orderId) {
   const result = await squareRequest('GET', `/v2/orders/${encodeURIComponent(orderId)}`);
   return result.order;

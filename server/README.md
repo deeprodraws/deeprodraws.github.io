@@ -6,18 +6,20 @@ Printify to print and ship.
 
 ## How a sale works
 
-1. The website calls `POST /create-checkout` with a print id, size, quantity, and shipping address.
+1. The website's Buy button calls `POST /create-checkout` with a print id, size, and quantity.
 2. The server looks up the real price in `products.js` and asks Square for a checkout page.
-3. The website sends the customer to that page, and they pay on Square's site.
+3. The website sends the customer to that page, where they enter their address and pay.
+   Square then sends them to the website's `/thank-you/` page.
 4. Square calls `POST /square-webhook` to say the payment completed.
-5. The server checks the message's signature, then places the Printify order.
+5. The server checks the message's signature, then places the Printify order,
+   shipped to the address Square collected.
 
 ## What's in here
 
 | File | What it does |
 | --- | --- |
 | `index.js` | The Express server and all routes. |
-| `products.js` | Store settings (shipping, sizes) and price lookup. |
+| `products.js` | Store settings (sizes, shipping countries) and price lookup. |
 | `catalog.json` | Prints, sizes, prices, and Printify IDs. Written by `npm run sync-products`. |
 | `square.js` | Every call to Square, plus the webhook signature check. |
 | `printify.js` | Every call to Printify. |
@@ -69,11 +71,14 @@ npm run sync-products
 
 That rewrites `catalog.json`. Commit and push it to put the new prices live.
 
-In `catalog.json` you can edit a print's `id`, `title`, or `forSale`
-(`false` stops selling it), and syncs keep your edits. Don't edit prices
-there, because the next sync replaces them with Printify's. Only sizes
-5×7, 8×10, and 11×14 are sold (`SIZE_KEYS` in `products.js`). The flat
-shipping fee is `SHIPPING_FEE_CENTS` in `products.js`.
+Titles and prices come from Printify, so change them there. In
+`catalog.json` you can edit a print's `id` (its name in website links) or
+`forSale` (`false` stops selling it), and syncs keep those two edits. Only sizes
+5×7, 8×10, and 11×14 are sold (`SIZE_KEYS` in `products.js`). Shipping is
+free, so each price needs to cover Printify's cost, its shipping, and Square's fee.
+
+The website reads the same `catalog.json` file (see `data/prints.js` in the
+main folder), so the site and the checkout always show the same prices.
 
 ## Printify safety
 
@@ -90,8 +95,8 @@ npm run dev
 ```
 
 The second line of the log says `Square mode: sandbox`. In another window,
-copy `checkout-request.example.json` to `checkout-request.json`, fill in a
-print, size, and address, and send it:
+copy `checkout-request.example.json` to `checkout-request.json`, pick a
+print and size, and send it:
 
 ```bash
 curl -X POST http://localhost:3001/create-checkout -H "Content-Type: application/json" --data @checkout-request.json
@@ -100,8 +105,8 @@ curl -X POST http://localhost:3001/create-checkout -H "Content-Type: application
 In PowerShell, type `curl.exe` instead of `curl`, and keep the `@` filename in quotes.
 
 The reply has a `checkout_url` and a `square_order_id`. Open the URL to see
-Square's checkout with your price and shipping, and pay with Square's sandbox
-test card: `4111 1111 1111 1111`, any future date, CVV `111`.
+Square's checkout with your price, enter any US address, and pay with Square's
+sandbox test card: `4111 1111 1111 1111`, any future date, CVV `111`.
 
 Square can't send webhooks to your laptop, so fake one instead. In `.env`, set
 `SQUARE_WEBHOOK_URL=http://localhost:3001/square-webhook` and any made-up

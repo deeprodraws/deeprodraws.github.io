@@ -43,6 +43,18 @@ async function main() {
           id: `TEST_PAYMENT_${Date.now()}`,
           order_id: squareOrderId,
           status: 'COMPLETED',
+          // A stand-in address. If you actually paid on the sandbox checkout
+          // page, the server uses the real address Square saved instead.
+          buyer_email_address: 'test@example.com',
+          shipping_address: {
+            first_name: 'Test',
+            last_name: 'Buyer',
+            address_line_1: '123 Example St',
+            locality: 'Belmont',
+            administrative_district_level_1: 'CA',
+            postal_code: '94002',
+            country: 'US',
+          },
         },
       },
     },

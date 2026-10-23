@@ -125,7 +125,7 @@ async function listProducts() {
 // `address` must look like:
 // { first_name, last_name, email, phone, country, region, address1, address2, city, zip }
 // country is a 2-letter code ("US"); region is the state ("CA").
-async function createOrder({ productId, variantId, quantity, address, externalId, label }) {
+async function createOrder({ productId, variantId, quantity, address, externalId, label, sendShippingNotification = false }) {
   const shopId = requireEnv('PRINTIFY_SHOP_ID');
 
   const order = {
@@ -141,7 +141,9 @@ async function createOrder({ productId, variantId, quantity, address, externalId
       },
     ],
     shipping_method: 1, // 1 = standard shipping
-    send_shipping_notification: false,
+    // true = Printify emails the customer (at address.email) with tracking
+    // once the print ships.
+    send_shipping_notification: sendShippingNotification,
     address_to: address,
   };
 

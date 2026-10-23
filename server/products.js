@@ -14,19 +14,17 @@
 //
 // WHERE THE PRICES COME FROM:
 // The prints, sizes, prices, and Printify IDs live in catalog.json, which is
-// written by `npm run sync-products` (it copies them from Printify). Don't
-// edit prices there by hand: the next sync replaces them with Printify's.
-// You CAN edit a print's "id", "title", or "forSale" in catalog.json, and
-// syncs keep your edits. Set "forSale": false to stop selling a print.
+// written by `npm run sync-products` (it copies them from Printify). Change
+// titles and prices in Printify, then sync; edits made in catalog.json get
+// replaced. Two things you CAN edit there, and syncs keep them: a print's
+// "id" (its name in website links) and "forSale" (false stops selling it).
 
 const catalog = require('./catalog.json');
 
 const CURRENCY = 'USD';
 
-// Flat shipping charged once per order, in cents. Change it here and nowhere else.
-const SHIPPING_FEE_CENTS = 800;
-
-// Flat shipping only makes sense for one country, so only US addresses are accepted.
+// Shipping is free (it's built into each print's price), so we only ship to
+// countries where that price covers Printify's shipping cost.
 const SHIPPING_COUNTRIES = ['US'];
 
 // The only sizes the store sells. The sync skips any other Printify sizes.
@@ -52,7 +50,6 @@ function findPrintSize(printId, sizeKey) {
 
 module.exports = {
   CURRENCY,
-  SHIPPING_FEE_CENTS,
   SHIPPING_COUNTRIES,
   SIZE_KEYS,
   PRINTS,

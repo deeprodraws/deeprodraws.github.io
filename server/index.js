@@ -3,13 +3,14 @@
 // listening for requests.
 //
 // HOW A SALE FLOWS THROUGH THIS SERVER:
-//   1. The website sends POST /create-checkout: "this print, this size, ship here".
+//   1. The website sends POST /create-checkout: "this print, this size, this many".
 //   2. We look up the real price in products.js and ask Square for a checkout
 //      page for that amount. The website sends the customer to that page.
-//   3. The customer pays on Square's page (we never touch the card).
+//   3. The customer enters their address and pays on Square's page (we never
+//      touch the card), then Square sends them to the website's thank-you page.
 //   4. Square calls POST /square-webhook: "payment completed".
 //   5. We check the message really came from Square, then order the print
-//      from Printify, shipped to the customer.
+//      from Printify, shipped to the address Square collected.
 //
 // RENDER FREE TIER NOTE: free services "spin down" after 15 minutes with no
 // traffic. The next request then waits ~30-60 seconds while it wakes up. Once
@@ -28,7 +29,7 @@ const express = require('express');
 const cors = require('cors');
 const printify = require('./printify');
 const square = require('./square');
-const { CURRENCY, SHIPPING_FEE_CENTS, SHIPPING_COUNTRIES, findPrintSize } = require('./products');
+const { CURRENCY, SHIPPING_COUNTRIES, findPrintSize } = require('./products');
 
 // Fail fast: if a required secret is missing, crash on startup with a clear
 // message, instead of starting "fine" and failing on the first real request.
@@ -59,9 +60,10 @@ const app = express();
 // 3001 so it doesn't collide with the Next.js site running on 3000.
 const PORT = process.env.PORT || 3001;
 
-// Where Square sends the customer after they pay. Change this once the
-// website has a proper thank-you page.
-const CHECKOUT_REDIRECT_URL = 'https://deeprodraws.com/prints/';
+// Where Square sends the customer after they pay. Landing there doesn't prove
+// anyone paid (anyone can type the address), so that page only says thanks.
+// Orders are placed only by the signed webhook below.
+const CHECKOUT_REDIRECT_URL = 'https://deeprodraws.com/thank-you/';
 
 // ---------------------------------------------------------------------------
 // CORS (Cross-Origin Resource Sharing)
@@ -74,6 +76,9 @@ const CHECKOUT_REDIRECT_URL = 'https://deeprodraws.com/prints/';
 // (see requireAdmin below) or a signature (see /square-webhook).
 // ---------------------------------------------------------------------------
 const ALLOWED_ORIGINS = ['https://deeprodraws.com', 'https://www.deeprodraws.com'];
+// While practicing in sandbox, also allow the website running on your laptop
+// (`npm run dev` in the main folder), so you can test the Buy button locally.
+if (squareEnvironment === 'sandbox') ALLOWED_ORIGINS.push('http://localhost:3000');
 app.use(cors({ origin: ALLOWED_ORIGINS }));
 
 // Parse JSON request bodies so routes can read them as req.body.
@@ -113,72 +118,33 @@ function requireAdmin(req, res, next) {
 }
 
 // ---------------------------------------------------------------------------
-// Shipping address helpers
-// The address arrives from the website, so we check it before using it.
-// It's stored on the Square order as metadata ("sticky notes"), one note per
-// field. Square allows at most 10 notes per order, each up to 255 characters,
-// which is exactly enough for these 10 fields.
+// Shipping address
+// Square's checkout page collects the address. After payment, Square saves
+// it on the order's "shipment" details, and also copies it onto the payment.
+// This turns Square's format into the shape Printify expects.
 // ---------------------------------------------------------------------------
-const ADDRESS_FIELDS = [
-  { name: 'first_name', required: true },
-  { name: 'last_name', required: true },
-  { name: 'email', required: true },
-  { name: 'phone', required: false },
-  { name: 'country', required: true },
-  { name: 'region', required: true }, // the state, e.g. "CA"
-  { name: 'address1', required: true },
-  { name: 'address2', required: false },
-  { name: 'city', required: true },
-  { name: 'zip', required: true },
-];
+function shippingAddressFromSquare(order, payment) {
+  const recipient = order.fulfillments?.find((f) => f.type === 'SHIPMENT')?.shipment_details?.recipient || {};
+  const address = recipient.address || payment.shipping_address || {};
 
-// Returns { address } if it's usable, or { error } explaining what's wrong.
-function validateAddress(input) {
-  if (!input || typeof input !== 'object') {
-    return { error: 'shipping_address is missing.' };
-  }
+  // Square may give the name as one "display_name", e.g. "Jane Q Smith".
+  const [firstWord = '', ...otherWords] = (recipient.display_name || '').trim().split(/\s+/);
 
-  const address = {};
-  for (const field of ADDRESS_FIELDS) {
-    const raw = input[field.name];
-    const value = typeof raw === 'string' ? raw.trim() : '';
-    if (field.required && !value) {
-      return { error: `shipping_address.${field.name} is required.` };
-    }
-    if (value.length > 200) {
-      return { error: `shipping_address.${field.name} is too long.` };
-    }
-    address[field.name] = value;
-  }
-
-  address.country = address.country.toUpperCase();
-  if (!SHIPPING_COUNTRIES.includes(address.country)) {
-    return { error: `Sorry, we only ship to: ${SHIPPING_COUNTRIES.join(', ')}.` };
-  }
-  if (!address.email.includes('@')) {
-    return { error: 'shipping_address.email does not look like an email address.' };
-  }
-
-  return { address };
+  return {
+    first_name: address.first_name || firstWord,
+    last_name: address.last_name || otherWords.join(' '),
+    email: recipient.email_address || payment.buyer_email_address || '',
+    phone: recipient.phone_number || '',
+    country: address.country || '',
+    region: address.administrative_district_level_1 || '', // the state, e.g. "CA"
+    address1: address.address_line_1 || '',
+    address2: address.address_line_2 || '',
+    city: address.locality || '',
+    zip: address.postal_code || '',
+  };
 }
 
-// Address -> Square metadata. Empty optional fields are left out.
-function addressToMetadata(address) {
-  const metadata = {};
-  for (const field of ADDRESS_FIELDS) {
-    if (address[field.name]) metadata[`ship_${field.name}`] = address[field.name];
-  }
-  return metadata;
-}
-
-// Square metadata -> address in the shape Printify expects.
-function metadataToAddress(metadata = {}) {
-  const address = {};
-  for (const field of ADDRESS_FIELDS) {
-    address[field.name] = metadata[`ship_${field.name}`] || '';
-  }
-  return address;
-}
+const REQUIRED_ADDRESS_FIELDS = ['first_name', 'last_name', 'country', 'region', 'address1', 'city', 'zip'];
 
 // ---------------------------------------------------------------------------
 // GET /  (health check)
@@ -191,15 +157,14 @@ app.get('/', (req, res) => {
 // ---------------------------------------------------------------------------
 // POST /create-checkout
 // Called by the website when a customer clicks "Buy". It expects JSON like:
-//   { "product_id": "eagle", "size": "11x14", "quantity": 1,
-//     "shipping_address": { first_name, last_name, email, ... } }
+//   { "product_id": "eagle", "size": "11x14", "quantity": 1 }
 // and replies with { "checkout_url": "https://square.link/..." }.
 // The website then sends the customer to that URL to pay.
 //
 // Notice what the website does NOT send: a price. See products.js for why.
 // ---------------------------------------------------------------------------
 app.post('/create-checkout', async (req, res) => {
-  const { product_id, size, quantity = 1, shipping_address } = req.body || {};
+  const { product_id, size, quantity = 1 } = req.body || {};
 
   const match = findPrintSize(product_id, size);
   if (!match) {
@@ -209,11 +174,6 @@ app.post('/create-checkout', async (req, res) => {
   const qty = Number(quantity);
   if (!Number.isInteger(qty) || qty < 1 || qty > 10) {
     return res.status(400).json({ error: 'Quantity must be a whole number from 1 to 10.' });
-  }
-
-  const { address, error } = validateAddress(shipping_address);
-  if (error) {
-    return res.status(400).json({ error });
   }
 
   const { print, size: printSize, sizeKey } = match;
@@ -233,10 +193,6 @@ app.post('/create-checkout', async (req, res) => {
           printify_variant_id: String(printSize.printifyVariantId),
         },
       },
-      shippingFeeCents: SHIPPING_FEE_CENTS,
-      currency: CURRENCY,
-      buyerEmail: address.email,
-      orderMetadata: addressToMetadata(address),
       redirectUrl: CHECKOUT_REDIRECT_URL,
     });
 
@@ -246,11 +202,6 @@ app.post('/create-checkout', async (req, res) => {
     // The full error is in the server log. Customers get a plain message,
     // because error details can reveal how the system works inside.
     console.error('[checkout] failed:', err.message);
-
-    // One Square error is the customer's to fix, so tell them plainly.
-    if (err.details?.errors?.some((e) => e.code === 'INVALID_EMAIL_ADDRESS')) {
-      return res.status(400).json({ error: 'That email address was not accepted. Please check it and try again.' });
-    }
     res.status(502).json({ error: 'Could not start checkout. Please try again in a moment.' });
   }
 });
@@ -329,7 +280,8 @@ async function handleSquareEvent(event) {
 
   let printifyOrderId;
   try {
-    // Read back the sticky notes /create-checkout attached to this order.
+    // Read back the sticky notes /create-checkout attached to this order, and
+    // the shipping address Square collected.
     const order = await square.getOrder(squareOrderId);
     const item = order.line_items?.find((lineItem) => lineItem.metadata?.printify_variant_id);
     if (!item) {
@@ -339,13 +291,33 @@ async function handleSquareEvent(event) {
       return;
     }
 
+    const address = shippingAddressFromSquare(order, payment);
+    const missingFields = REQUIRED_ADDRESS_FIELDS.filter((field) => !address[field]);
+    if (missingFields.length > 0) {
+      // Square sends more than one message per payment, and the address can
+      // arrive a moment after the first one. Throwing here lets a later
+      // message try again (see the catch below).
+      throw new Error(`shipping address is missing ${missingFields.join(', ')}`);
+    }
+    if (!SHIPPING_COUNTRIES.includes(address.country)) {
+      // Square's page can't limit countries, so this is checked after payment.
+      console.error(
+        `[webhook] ACTION NEEDED for Square order ${squareOrderId}: the customer paid with an address in ` +
+          `country "${address.country}", but we only ship to ${SHIPPING_COUNTRIES.join(', ')}. ` +
+          'Refund them in the Square Dashboard.',
+      );
+      return;
+    }
+
     const created = await printify.createOrder({
       productId: item.metadata.printify_product_id,
       variantId: item.metadata.printify_variant_id,
       quantity: Number(item.quantity),
-      address: metadataToAddress(order.metadata),
+      address,
       externalId: squareOrderId,
       label: `Square ${squareOrderId}`,
+      // Real customers get a shipping email with tracking from Printify.
+      sendShippingNotification: true,
     });
     printifyOrderId = created.id;
     console.log(`[webhook] paid! Created Printify order ${printifyOrderId} for Square order ${squareOrderId}`);
