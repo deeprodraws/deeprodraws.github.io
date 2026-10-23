@@ -6,8 +6,8 @@
 //   npm run sync-products -- --dry-run (only show what WOULD change)
 //
 // What it keeps from your existing catalog.json: each print's "id" and
-// "forSale", matched by Printify product ID. Everything else (title, sizes,
-// prices, variant IDs) comes fresh from Printify.
+// "forSale", matched by Printify product ID. Everything else (title,
+// description, sizes, prices, variant IDs) comes fresh from Printify.
 
 const fs = require('fs');
 const path = require('path');
@@ -47,6 +47,24 @@ function shortTitle(printifyTitle) {
     .join(' ');
 }
 
+// Printify stores descriptions as HTML (<p>...</p>, sometimes a size table).
+// The website only needs the words, so keep each paragraph as plain text and
+// drop tables, since the size buttons already show the sizes.
+function descriptionParagraphs(html) {
+  const entities = { '&quot;': '"', '&amp;': '&', '&#39;': "'", '&apos;': "'", '&nbsp;': ' ', '&lt;': '<', '&gt;': '>' };
+  return html
+    .replace(/<table[\s\S]*?<\/table>/gi, '')
+    .split(/<\/p>|<br\s*\/?>/i)
+    .map((chunk) =>
+      chunk
+        .replace(/<[^>]*>/g, '')
+        .replace(/&[a-z#0-9]+;/gi, (entity) => entities[entity] ?? entity)
+        .replace(/\s+/g, ' ')
+        .trim(),
+    )
+    .filter(Boolean);
+}
+
 function slugify(text) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
@@ -76,15 +94,19 @@ async function main() {
     for (const key of SIZE_KEYS) if (sizes[key]) orderedSizes[key] = sizes[key];
 
     const title = shortTitle(product.title);
+    const description = descriptionParagraphs(product.description);
     let entry;
     if (old) {
-      entry = { id: old.id, title, forSale: old.forSale, printifyProductId: product.id, sizes: orderedSizes };
+      entry = { id: old.id, title, description, forSale: old.forSale, printifyProductId: product.id, sizes: orderedSizes };
       if (old.title !== title) changes.push(`~ "${old.title}" renamed to "${title}"`);
+      if (JSON.stringify(old.description ?? []) !== JSON.stringify(description)) {
+        changes.push(`~ ${title}: description updated`);
+      }
     } else {
       let id = slugify(title);
       for (let n = 2; usedIds.has(id); n++) id = `${slugify(title)}-${n}`;
       usedIds.add(id);
-      entry = { id, title, forSale: true, printifyProductId: product.id, sizes: orderedSizes };
+      entry = { id, title, description, forSale: true, printifyProductId: product.id, sizes: orderedSizes };
       changes.push(`+ NEW: "${title}" (id "${id}"), now for sale`);
     }
 

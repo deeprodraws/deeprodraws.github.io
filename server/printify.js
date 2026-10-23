@@ -104,6 +104,7 @@ async function listProducts() {
   return products.map((product) => ({
     id: product.id,
     title: product.title,
+    description: product.description || '', // HTML, as written in Printify
     variants: product.variants
       .filter((variant) => variant.is_enabled)
       .map((variant) => ({

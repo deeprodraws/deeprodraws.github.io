@@ -146,6 +146,22 @@ function shippingAddressFromSquare(order, payment) {
 
 const REQUIRED_ADDRESS_FIELDS = ['first_name', 'last_name', 'country', 'region', 'address1', 'city', 'zip'];
 
+// Square's sandbox "Test Payment" button pays without ever asking for an
+// address. In sandbox only, use this stand-in so practice orders still reach
+// Printify (where they're canceled right away). Real checkouts always ask.
+const SANDBOX_TEST_ADDRESS = {
+  first_name: 'Sandbox',
+  last_name: 'Tester',
+  email: '',
+  phone: '',
+  country: 'US',
+  region: 'CA',
+  address1: '123 Example St',
+  address2: '',
+  city: 'Belmont',
+  zip: '94002',
+};
+
 // ---------------------------------------------------------------------------
 // GET /  (health check)
 // Lets you, Render, and your keep-alive ping confirm the server is up.
@@ -291,7 +307,11 @@ async function handleSquareEvent(event) {
       return;
     }
 
-    const address = shippingAddressFromSquare(order, payment);
+    let address = shippingAddressFromSquare(order, payment);
+    if (squareEnvironment === 'sandbox' && !address.address1) {
+      console.log('[webhook] sandbox payment had no address, so using the stand-in test address');
+      address = SANDBOX_TEST_ADDRESS;
+    }
     const missingFields = REQUIRED_ADDRESS_FIELDS.filter((field) => !address[field]);
     if (missingFields.length > 0) {
       // Square sends more than one message per payment, and the address can
