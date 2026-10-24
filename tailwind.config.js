@@ -1,5 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  // Hover styles only apply on devices with a real mouse. On phones a tap
+  // otherwise "sticks" as a hover (e.g. a tapped arrow stays highlighted).
+  future: { hoverOnlyWhenSupported: true },
   content: [
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',

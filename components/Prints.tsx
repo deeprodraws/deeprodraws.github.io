@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import FadeIn from './FadeIn'
-import { prints, coverImage } from '@/data/prints'
+import { prints, coverImage, coverAspectClass } from '@/data/prints'
 
 export default function Prints() {
   return (
@@ -25,7 +25,7 @@ export default function Prints() {
                 <Link
                   href={`/prints/${print.slug}`}
                   data-cursor="View"
-                  className={`group ${print.aspectClass} relative overflow-hidden block`}
+                  className={`group ${coverAspectClass(print)} relative overflow-hidden block`}
                 >
                   <img
                     src={coverImage(print)}

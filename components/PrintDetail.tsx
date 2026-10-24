@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence, type PanInfo } from 'framer-motion'
 
 // The store server that creates Square checkouts. For testing the Buy button
 // against the server on your laptop, put
@@ -24,167 +24,262 @@ type Print = {
   sizes: { key: string; label: string; priceCents: number; price: string }[]
 }
 
+// How far a finger has to drag (in pixels) to count as a swipe.
+const SWIPE_PX = 50
+
+function ArrowIcon({ dir }: { dir: 'prev' | 'next' }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d={dir === 'prev' ? 'M15 18l-6-6 6-6' : 'M9 18l6-6-6-6'} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+const lightboxArrowCls =
+  'w-12 h-12 rounded-full flex items-center justify-center bg-black/70 border border-white/40 text-white hover:bg-white hover:text-black transition-colors'
+
 function MockupGallery({ print }: { print: Print }) {
-  const slides =
-    print.mockups.length > 0
-      ? print.mockups.map((m) => `/images/mockups/${print.slug}/${m}`)
-      : [`/images/${print.image}`]
+  const hasMockups = print.mockups.length > 0
+  const slides = hasMockups
+    ? print.mockups.map((m) => `/images/mockups/${print.slug}/${m}`)
+    : [`/images/${print.image}`]
+  const many = slides.length > 1
 
   const [activeIdx, setActiveIdx] = useState(0)
   const [direction, setDirection] = useState(1)
   const [lightboxOpen, setLightboxOpen] = useState(false)
+  const draggedRef = useRef(false)
+  const closeRef = useRef<HTMLButtonElement>(null)
 
+  // Arrows and swipes wrap around: "next" on the last photo goes to the first.
+  const step = (delta: 1 | -1) => {
+    if (!many) return
+    setDirection(delta)
+    setActiveIdx((i) => (i + delta + slides.length) % slides.length)
+  }
   const goTo = (idx: number) => {
     if (idx === activeIdx) return
     setDirection(idx > activeIdx ? 1 : -1)
     setActiveIdx(idx)
   }
+  const onSwipeEnd = (_: unknown, info: PanInfo) => {
+    if (info.offset.x < -SWIPE_PX) step(1)
+    else if (info.offset.x > SWIPE_PX) step(-1)
+  }
 
-  const prev = () => goTo(Math.max(0, activeIdx - 1))
-  const next = () => goTo(Math.min(slides.length - 1, activeIdx + 1))
+  const open = () => {
+    // A swipe ends with a tap-like release; don't treat it as "open".
+    if (draggedRef.current) return
+    setLightboxOpen(true)
+  }
+  const close = () => setLightboxOpen(false)
 
   useEffect(() => {
     if (!lightboxOpen) return
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    closeRef.current?.focus()
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setLightboxOpen(false)
-      if (e.key === 'ArrowLeft') prev()
-      if (e.key === 'ArrowRight') next()
+      if (e.key === 'Escape') close()
+      if (e.key === 'ArrowLeft') step(-1)
+      if (e.key === 'ArrowRight') step(1)
     }
     document.body.style.overflow = 'hidden'
     window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('keydown', onKey)
       document.body.style.overflow = ''
+      previouslyFocused?.focus()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lightboxOpen, activeIdx])
+  }, [lightboxOpen])
+
+  const swipeProps = many
+    ? {
+        drag: 'x' as const,
+        dragConstraints: { left: 0, right: 0 },
+        dragElastic: 0.5,
+        dragSnapToOrigin: true,
+        onDragStart: () => { draggedRef.current = true },
+        onDragEnd: onSwipeEnd,
+        style: { touchAction: 'pan-y' },
+      }
+    : {}
 
   return (
     <>
       <div>
-        {/* Gallery strip */}
+        {/* Photo strip. Photos come in different shapes, so each is shown whole. */}
         <div
-          className={`relative overflow-hidden bg-white/5 cursor-none ${print.mockups.length > 0 ? 'aspect-[4/5]' : print.aspectClass}`}
+          className={`relative overflow-hidden bg-white/[0.04] cursor-none ${hasMockups ? 'aspect-square' : print.aspectClass}`}
           data-cursor="Zoom"
-          onClick={() => setLightboxOpen(true)}
+          onPointerDown={() => { draggedRef.current = false }}
+          onClick={open}
         >
           <AnimatePresence initial={false} custom={direction} mode="popLayout">
             <motion.img
               key={activeIdx}
               src={slides[activeIdx]}
-              alt={`${print.title} mockup ${activeIdx + 1}`}
-              className="absolute inset-0 w-full h-full object-cover"
-              custom={direction}
+              alt={`${print.title}, photo ${activeIdx + 1} of ${slides.length}`}
+              draggable={false}
+              className={`absolute inset-0 w-full h-full select-none ${hasMockups ? 'object-contain' : 'object-cover'}`}
               initial={{ opacity: 0, x: direction * 40 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: direction * -40 }}
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              {...swipeProps}
             />
           </AnimatePresence>
 
-          {/* Expand hint */}
-          <div className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center bg-black/50 pointer-events-none">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setLightboxOpen(true) }}
+            aria-label="View photos full screen"
+            className="absolute top-3 right-3 w-10 h-10 flex items-center justify-center bg-black/70 border border-white/30 text-white"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
               <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-          </div>
+          </button>
 
-          {slides.length > 1 && (
+          {many && (
             <>
               <button
-                onClick={(e) => { e.stopPropagation(); prev() }}
-                disabled={activeIdx === 0}
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center bg-black/60 hover:bg-black/90 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-                aria-label="Previous image"
+                type="button"
+                onClick={(e) => { e.stopPropagation(); step(-1) }}
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/70 border border-white/30 text-white hover:bg-black transition-colors"
+                aria-label="Previous photo"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white">
-                  <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <ArrowIcon dir="prev" />
               </button>
               <button
-                onClick={(e) => { e.stopPropagation(); next() }}
-                disabled={activeIdx === slides.length - 1}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center bg-black/60 hover:bg-black/90 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-                aria-label="Next image"
+                type="button"
+                onClick={(e) => { e.stopPropagation(); step(1) }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/70 border border-white/30 text-white hover:bg-black transition-colors"
+                aria-label="Next photo"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white">
-                  <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <ArrowIcon dir="next" />
               </button>
             </>
           )}
         </div>
 
-        {slides.length > 1 && (
-          <div className="flex justify-center items-center gap-[5px] mt-4">
+        {many && (
+          <div className="flex justify-center items-center mt-2">
             {slides.map((_, i) => (
               <button
                 key={i}
+                type="button"
                 onClick={() => goTo(i)}
-                aria-label={`View image ${i + 1}`}
-                className={`rounded-full transition-all duration-300 ${
-                  i === activeIdx ? 'w-[14px] h-[3px] bg-white' : 'w-[3px] h-[3px] bg-white/30'
-                }`}
-              />
+                aria-label={`View photo ${i + 1}`}
+                aria-current={i === activeIdx}
+                className="w-8 h-8 flex items-center justify-center"
+              >
+                <span
+                  className={`block rounded-full transition-all duration-300 ${
+                    i === activeIdx ? 'w-5 h-[3px] bg-white' : 'w-[5px] h-[5px] bg-white/35'
+                  }`}
+                />
+              </button>
             ))}
           </div>
         )}
       </div>
 
-      {/* Lightbox */}
+      {/* Full-screen viewer */}
       <AnimatePresence>
         {lightboxOpen && (
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${print.title} photos`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-[200] bg-black/97 flex items-center justify-center p-4 md:p-10"
-            onClick={() => setLightboxOpen(false)}
+            className="fixed inset-0 z-[200] bg-black flex flex-col"
+            onClick={close}
           >
-            <button
-              onClick={() => setLightboxOpen(false)}
-              className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
-              aria-label="Close"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
-              </svg>
-            </button>
-
-            {activeIdx > 0 && (
+            {/* Top bar: photo count and close button */}
+            <div className="flex items-center justify-between px-4 py-3 md:px-8 md:py-6 shrink-0">
+              <p className="font-sans text-xs tracking-[0.3em] text-white/70 tabular-nums" aria-live="polite">
+                {many ? `${activeIdx + 1} / ${slides.length}` : ''}
+              </p>
               <button
-                onClick={(e) => { e.stopPropagation(); prev() }}
-                className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors p-3 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                aria-label="Previous"
+                ref={closeRef}
+                type="button"
+                onClick={close}
+                aria-label="Close"
+                className="w-11 h-11 rounded-full flex items-center justify-center bg-white/10 border border-white/40 text-white hover:bg-white hover:text-black transition-colors"
               >
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                  <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
                 </svg>
               </button>
-            )}
-            {activeIdx < slides.length - 1 && (
-              <button
-                onClick={(e) => { e.stopPropagation(); next() }}
-                className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors p-3 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                aria-label="Next"
-              >
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-            )}
+            </div>
 
-            <motion.img
-              key={`lb-${activeIdx}`}
-              src={slides[activeIdx]}
-              alt={`${print.title} mockup ${activeIdx + 1}`}
-              onClick={(e) => e.stopPropagation()}
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="max-h-[90svh] max-w-full w-auto object-contain"
-            />
+            {/* Photo. Tapping the dark area around it closes the viewer. */}
+            <div className="relative flex-1 min-h-0 flex items-center justify-center px-4 md:px-28">
+              <AnimatePresence initial={false} custom={direction} mode="popLayout">
+                <motion.img
+                  key={`lb-${activeIdx}`}
+                  src={slides[activeIdx]}
+                  alt={`${print.title}, photo ${activeIdx + 1} of ${slides.length}`}
+                  draggable={false}
+                  onClick={(e) => e.stopPropagation()}
+                  initial={{ opacity: 0, x: direction * 40 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: direction * -40 }}
+                  transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                  className="max-h-full max-w-full w-auto h-auto object-contain select-none"
+                  {...swipeProps}
+                />
+              </AnimatePresence>
+
+              {many && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); step(-1) }}
+                    aria-label="Previous photo"
+                    className={`hidden md:flex absolute left-8 top-1/2 -translate-y-1/2 ${lightboxArrowCls}`}
+                  >
+                    <ArrowIcon dir="prev" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); step(1) }}
+                    aria-label="Next photo"
+                    className={`hidden md:flex absolute right-8 top-1/2 -translate-y-1/2 ${lightboxArrowCls}`}
+                  >
+                    <ArrowIcon dir="next" />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* On phones the arrows sit below the photo so they never cover it. */}
+            {many ? (
+              <div className="md:hidden flex items-center justify-center gap-10 py-5 shrink-0">
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); step(-1) }}
+                  aria-label="Previous photo"
+                  className={lightboxArrowCls}
+                >
+                  <ArrowIcon dir="prev" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); step(1) }}
+                  aria-label="Next photo"
+                  className={lightboxArrowCls}
+                >
+                  <ArrowIcon dir="next" />
+                </button>
+              </div>
+            ) : (
+              <div className="h-6 shrink-0" />
+            )}
           </motion.div>
         )}
       </AnimatePresence>

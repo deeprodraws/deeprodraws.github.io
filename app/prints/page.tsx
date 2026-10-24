@@ -1,7 +1,7 @@
 import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
-import { prints } from '@/data/prints'
+import { prints, coverImage, coverAspectClass } from '@/data/prints'
 
 export const metadata = {
   title: 'Prints — DeeproDraws',
@@ -35,10 +35,10 @@ export default function PrintsIndexPage() {
                 <Link
                   href={`/prints/${print.slug}`}
                   data-cursor="View"
-                  className={`group ${print.aspectClass} relative overflow-hidden mb-4 block`}
+                  className={`group ${coverAspectClass(print)} relative overflow-hidden mb-4 block`}
                 >
                   <img
-                    src={`/images/${print.image}`}
+                    src={coverImage(print)}
                     alt={print.title}
                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-200 group-hover:scale-[1.04]"
                     loading="lazy"

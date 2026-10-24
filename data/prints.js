@@ -21,36 +21,39 @@ import catalog from '@/server/catalog.json'
  * website refuses to build and says which one. That way a typo can never
  * reach customers as a Buy button that silently fails.
  */
+// Every print currently has the same three mockup photos (mockup-1 is the cover).
+const MOCKUPS = ['mockup-1.jpg', 'mockup-2.jpg', 'mockup-3.jpg']
+
 const siteDetails = [
   {
     id: 'eagle',
     image: 'prints/eagle.jpg',
     aspectClass: 'aspect-[4/5]',
-    mockups: ['mockup-1.jpg', 'mockup-2.jpg', 'mockup-3.jpg'],
+    mockups: MOCKUPS,
   },
   {
     id: 'dog',
     image: 'prints/dog.jpg',
     aspectClass: 'aspect-[4/5]',
-    mockups: [],
+    mockups: MOCKUPS,
   },
   {
     id: 'cat-in-a-basket',
     image: 'prints/cat-in-a-basket.jpg',
     aspectClass: 'aspect-[4/5]',
-    mockups: [],
+    mockups: MOCKUPS,
   },
   {
     id: 'still-life',
     image: 'prints/still-life.jpg',
     aspectClass: 'aspect-[4/5]',
-    mockups: [],
+    mockups: MOCKUPS,
   },
   {
     id: 'mountain-landscape',
     image: 'prints/mountain-landscape.jpg',
     aspectClass: 'aspect-[5/4]',
-    mockups: [],
+    mockups: MOCKUPS,
   },
 ]
 
@@ -94,6 +97,11 @@ export const prints = siteDetails.map((details) => {
     startingPrice: formatPrice(Math.min(...sizes.map((size) => size.priceCents))),
   }
 })
+
+/** Mockup photos come in mixed shapes, so cards show them as squares. */
+export function coverAspectClass(print) {
+  return print.mockups.length > 0 ? 'aspect-square' : print.aspectClass
+}
 
 /** The first mockup if there is one, otherwise the artwork itself. */
 export function coverImage(print) {
